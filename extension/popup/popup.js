@@ -57,9 +57,6 @@ function setupEventListeners() {
         e.preventDefault();
         handleSendFeedback();
     });
-    
-    document.getElementById('subscribe-btn').addEventListener('click', handleSubscribe);
-    document.getElementById('subscribe-welcome-btn').addEventListener('click', handleSubscribe);
 }
 
 function showScreen(screenName) {
@@ -108,17 +105,22 @@ async function handleSignup() {
                 if (errorData.detail) {
                     if (typeof errorData.detail === 'string') {
                         errorMsg = errorData.detail;
-                    } else if (Array.isArray(errorData.detail)) {
+                    } else if (errorData.detail.message && typeof errorData.detail.message === 'string') {
+                        errorMsg = errorData.detail.message;
+                    } else if (Array.isArray(errorData.detail) && errorData.detail.length > 0) {
                         errorMsg = errorData.detail.map(e => {
                             if (typeof e === 'string') return e;
-                            const field = e.loc && e.loc.length > 1 ? e.loc[e.loc.length - 1] : 'field';
-                            const message = e.msg || e.message || 'Validation error';
-                            return `${field}: ${message}`;
-                        }).join('; ');
-                    } else if (errorData.detail.message) {
-                        errorMsg = errorData.detail.message;
-                    } else if (typeof errorData.detail === 'object') {
+                            if (e && typeof e === 'object') {
+                                const field = e.loc && Array.isArray(e.loc) && e.loc.length > 1 ? e.loc[e.loc.length - 1] : 'field';
+                                const message = e.msg || e.message || 'Validation error';
+                                return `${field}: ${message}`;
+                            }
+                            return String(e);
+                        }).filter(msg => msg).join('; ');
+                    } else if (typeof errorData.detail === 'object' && errorData.detail !== null) {
                         errorMsg = errorData.detail.message || JSON.stringify(errorData.detail);
+                    } else {
+                        errorMsg = String(errorData.detail);
                     }
                 } else if (errorData.message) {
                     errorMsg = errorData.message;
@@ -176,17 +178,22 @@ async function handleLogin() {
                 if (errorData.detail) {
                     if (typeof errorData.detail === 'string') {
                         errorMsg = errorData.detail;
-                    } else if (Array.isArray(errorData.detail)) {
+                    } else if (errorData.detail.message && typeof errorData.detail.message === 'string') {
+                        errorMsg = errorData.detail.message;
+                    } else if (Array.isArray(errorData.detail) && errorData.detail.length > 0) {
                         errorMsg = errorData.detail.map(e => {
                             if (typeof e === 'string') return e;
-                            const field = e.loc && e.loc.length > 1 ? e.loc[e.loc.length - 1] : 'field';
-                            const message = e.msg || e.message || 'Validation error';
-                            return `${field}: ${message}`;
-                        }).join('; ');
-                    } else if (errorData.detail.message) {
-                        errorMsg = errorData.detail.message;
-                    } else if (typeof errorData.detail === 'object') {
+                            if (e && typeof e === 'object') {
+                                const field = e.loc && Array.isArray(e.loc) && e.loc.length > 1 ? e.loc[e.loc.length - 1] : 'field';
+                                const message = e.msg || e.message || 'Validation error';
+                                return `${field}: ${message}`;
+                            }
+                            return String(e);
+                        }).filter(msg => msg).join('; ');
+                    } else if (typeof errorData.detail === 'object' && errorData.detail !== null) {
                         errorMsg = errorData.detail.message || JSON.stringify(errorData.detail);
+                    } else {
+                        errorMsg = String(errorData.detail);
                     }
                 } else if (errorData.message) {
                     errorMsg = errorData.message;
@@ -503,17 +510,22 @@ async function handleSave() {
                 if (errorData.detail) {
                     if (typeof errorData.detail === 'string') {
                         errorMsg = errorData.detail;
-                    } else if (Array.isArray(errorData.detail)) {
+                    } else if (errorData.detail.message && typeof errorData.detail.message === 'string') {
+                        errorMsg = errorData.detail.message;
+                    } else if (Array.isArray(errorData.detail) && errorData.detail.length > 0) {
                         errorMsg = errorData.detail.map(e => {
                             if (typeof e === 'string') return e;
-                            const field = e.loc && e.loc.length > 1 ? e.loc[e.loc.length - 1] : 'field';
-                            const message = e.msg || e.message || 'Validation error';
-                            return `${field}: ${message}`;
-                        }).join('; ');
-                    } else if (errorData.detail.message) {
-                        errorMsg = errorData.detail.message;
-                    } else if (typeof errorData.detail === 'object') {
+                            if (e && typeof e === 'object') {
+                                const field = e.loc && Array.isArray(e.loc) && e.loc.length > 1 ? e.loc[e.loc.length - 1] : 'field';
+                                const message = e.msg || e.message || 'Validation error';
+                                return `${field}: ${message}`;
+                            }
+                            return String(e);
+                        }).filter(msg => msg).join('; ');
+                    } else if (typeof errorData.detail === 'object' && errorData.detail !== null) {
                         errorMsg = errorData.detail.message || JSON.stringify(errorData.detail);
+                    } else {
+                        errorMsg = String(errorData.detail);
                     }
                 } else if (errorData.message) {
                     errorMsg = errorData.message;
@@ -539,31 +551,6 @@ function handleSendFeedback() {
     const subject = encodeURIComponent('RememberMyContext - Feedback');
     const body = encodeURIComponent('Hi,\n\nI wanted to share the following feedback:\n\n');
     window.location.href = `mailto:support@remembermycontext.com?subject=${subject}&body=${body}`;
-}
-
-function handleSubscribe() {
-    const emailInput = document.getElementById('subscribe-email');
-    const email = emailInput ? emailInput.value.trim() : '';
-    
-    if (!email) {
-        showToast('Please enter your email address');
-        return;
-    }
-    
-    if (!email.includes('@')) {
-        showToast('Please enter a valid email address');
-        return;
-    }
-    
-    const subject = encodeURIComponent('RememberMyContext - Subscribe for Updates');
-    const body = encodeURIComponent(`Hi,\n\nI would like to subscribe for updates about RememberMyContext.\n\nEmail: ${email}\n\nThank you!`);
-    window.location.href = `mailto:support@remembermycontext.com?subject=${subject}&body=${body}`;
-    
-    showToast('Opening email client...');
-    
-    if (emailInput) {
-        emailInput.value = '';
-    }
 }
 
 function showToast(message) {
