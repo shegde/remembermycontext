@@ -1,15 +1,17 @@
 {
   "manifest_version": 3,
-  "name": "Context Saver",
+  "name": "RememberMyContext",
   "version": "1.0.0",
-  "description": "Save and reuse context across LLM applications",
+  "description": "Never repeat your context across LLM apps. Store once, use everywhere.",
   "permissions": [
     "storage",
     "activeTab",
     "scripting"
   ],
   "host_permissions": [
-    "<all_urls>"
+    "<all_urls>",
+    "http://localhost:8000/*",
+    "http://127.0.0.1:8000/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -21,8 +23,8 @@
     }
   ],
   "action": {
-    "default_popup": "popup/mockups.html",
-    "default_title": "Context Saver"
+    "default_popup": "popup/index.html",
+    "default_title": "RememberMyContext"
   },
   "icons": {
     "16": "icons/icon16.png",

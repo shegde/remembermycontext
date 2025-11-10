@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RememberMyContext</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div class="popup-header">
+        <h2>RememberMyContext</h2>
+        <span id="plan-status" class="plan-status">Free Plan</span>
+    </div>
+    
+    <div class="popup-body">
+        <div id="welcome-screen" class="screen active">
+            <div style="text-align: center; padding: 20px 0;">
+                <div style="width: 80px; height: 80px; background: #007bff; margin: 0 auto 20px; border-radius: 50%;"></div>
+                <h3 style="margin-bottom: 15px;">Welcome to RememberMyContext</h3>
+                <p style="color: #666; margin-bottom: 30px;">Never repeat your context across LLM apps again. Store once, use everywhere.</p>
+                <button id="create-account-btn" class="btn btn-primary" style="width: 100%; margin-bottom: 10px;">Create Account</button>
+                <button id="login-btn" class="btn btn-link" style="width: 100%; margin-bottom: 15px;">Already have an account? Login</button>
+                <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee;">
+                    <input type="email" id="subscribe-email" placeholder="Enter email for updates" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px; font-size: 14px;">
+                    <button id="subscribe-welcome-btn" class="btn btn-secondary" style="width: 100%; padding: 8px; font-size: 14px;">Subscribe for Updates</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="signup-screen" class="screen">
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="signup-email" placeholder="your@email.com">
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="signup-password" placeholder="••••••••">
+            </div>
+            <div class="form-group">
+                <label>Confirm Password</label>
+                <input type="password" id="signup-confirm" placeholder="••••••••">
+            </div>
+            <div class="info-box" style="font-size: 12px;">
+                <strong>🔒 Your data is secure</strong><br>
+                All context is encrypted at rest and in transit
+            </div>
+            <button id="signup-submit" class="btn btn-primary" style="width: 100%;">Create Account</button>
+            <button id="signup-login-link" class="btn btn-link" style="width: 100%; margin-top: 10px;">Already have an account? Login</button>
+        </div>
+
+        <div id="login-screen" class="screen">
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="login-email" placeholder="your@email.com">
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="login-password" placeholder="••••••••">
+            </div>
+            <button id="login-submit" class="btn btn-primary" style="width: 100%; margin-bottom: 10px;">Login</button>
+            <button id="login-signup-link" class="btn btn-link" style="width: 100%;">Create New Account</button>
+        </div>
+
+        <div id="main-screen" class="screen">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <span style="font-size: 14px; color: #666;">Your Context Boxes</span>
+                <button id="dashboard-btn" class="btn btn-link" style="font-size: 12px; padding: 5px 10px;">Dashboard</button>
+            </div>
+            
+            <div id="context-boxes">
+                <div class="context-box clickable" data-box="Career">
+                    <div class="context-box-name">💼 Career</div>
+                    <div class="context-box-meta">0 versions • Never used</div>
+                </div>
+                
+                <div class="context-box clickable" data-box="Work">
+                    <div class="context-box-name">🏢 Work</div>
+                    <div class="context-box-meta">0 versions • Never used</div>
+                </div>
+                
+                <div class="context-box clickable" data-box="Health">
+                    <div class="context-box-name">🏥 Health</div>
+                    <div class="context-box-meta">0 versions • Never used</div>
+                </div>
+                
+                <div class="context-box clickable" data-box="Travel">
+                    <div class="context-box-name">✈️ Travel</div>
+                    <div class="context-box-meta">0 versions • Never used</div>
+                </div>
+                
+                <div class="context-box clickable" data-box="Custom">
+                    <div class="context-box-name">⚙️ Custom</div>
+                    <div class="context-box-meta">0 versions • Empty</div>
+                </div>
+            </div>
+            
+            <div class="footer-links">
+                <a href="#" id="feedback-link">Send Feedback</a> • 
+                <a href="#" id="upgrade-link">Upgrade</a> • 
+                <a href="#" id="logout-link" style="color: #dc3545;">Logout</a>
+            </div>
+        </div>
+
+        <div id="versions-screen" class="screen">
+            <div class="popup-header">
+                <h2 id="versions-box-name">💼 Career Context</h2>
+            </div>
+            <div class="popup-body">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <button id="versions-back-btn" class="btn btn-link" style="font-size: 12px; padding: 5px;">← Back</button>
+                    <button id="edit-latest-btn" class="btn btn-primary" style="font-size: 12px; padding: 5px 15px;">Edit Latest</button>
+                </div>
+                
+                <div id="versions-list">
+                </div>
+                
+                <div class="info-box" style="margin-top: 15px; font-size: 11px;">
+                    ℹ️ Older versions auto-delete after 30 days of inactivity
+                </div>
+            </div>
+        </div>
+
+        <div id="edit-screen" class="screen">
+            <div class="popup-header">
+                <h2 id="edit-box-name">Edit: 💼 Career</h2>
+            </div>
+            <div class="popup-body" style="display: flex; flex-direction: column; height: calc(100% - 51px); padding-bottom: 10px;">
+                <div style="margin-bottom: 10px;">
+                    <span style="font-size: 12px; color: #666;">Editing will create version v<span id="next-version">1</span></span>
+                </div>
+                <div class="form-group" style="flex: 1; margin-bottom: 10px;">
+                    <textarea id="context-text" placeholder="Paste or type your context here...
+
+Example:
+- Current role: Senior Product Manager
+- 8 years experience in SaaS
+- Interested in AI/ML products
+- Looking for leadership opportunities" style="height: 100%; min-height: 250px;"></textarea>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button id="edit-cancel-btn" class="btn btn-secondary" style="flex: 1;">Cancel</button>
+                    <button id="edit-save-btn" class="btn btn-success" style="flex: 1;">Save</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="upgrade-screen" class="screen">
+            <div class="popup-header">
+                <button id="upgrade-back-btn" class="back-btn">←</button>
+                <h2>Upgrade to Pro</h2>
+            </div>
+            <div class="popup-body">
+                <div style="text-align: center; padding: 20px 0;">
+                    <h3 style="color: #007bff; margin-bottom: 20px;">Pro Plan Features</h3>
+                    
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px; text-align: left;">
+                        <div style="margin-bottom: 10px;">
+                            <strong>✓</strong> Unlimited Context Boxes
+                        </div>
+                        <div style="margin-bottom: 10px;">
+                            <strong>✓</strong> Advanced Analytics
+                        </div>
+                        <div style="margin-bottom: 10px;">
+                            <strong>✓</strong> Team Collaboration
+                        </div>
+                        <div style="margin-bottom: 10px;">
+                            <strong>✓</strong> Priority Support
+                        </div>
+                        <div style="margin-bottom: 10px;">
+                            <strong>✓</strong> Export/Import Contexts
+                        </div>
+                        <div>
+                            <strong>✓</strong> Custom Integrations
+                        </div>
+                    </div>
+
+                    <div style="background: #007bff; color: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                        <div style="font-size: 32px; font-weight: bold;">Coming Soon</div>
+                        <div style="font-size: 14px; opacity: 0.9;">Pricing details will be announced soon</div>
+                    </div>
+
+                    <button id="subscribe-btn" class="btn btn-primary" style="width: 100%; padding: 12px; font-size: 16px; margin-bottom: 10px;">
+                        Subscribe for Updates
+                    </button>
+
+                    <div style="font-size: 12px; color: #666; margin-top: 15px;">
+                        Be the first to know when Pro plan launches
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+    
+    <script src="popup.js"></script>
+</body>
+</html>

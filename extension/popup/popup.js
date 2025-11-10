@@ -30,7 +30,8 @@ function setupEventListeners() {
     document.getElementById('login-submit').addEventListener('click', handleLogin);
     
     document.getElementById('dashboard-btn').addEventListener('click', () => {
-        chrome.tabs.create({ url: 'http://localhost:8000/dashboard' });
+        const dashboardUrl = API_BASE.replace('/api/v1', '/dashboard');
+        chrome.tabs.create({ url: dashboardUrl });
     });
     
     document.getElementById('logout-link').addEventListener('click', handleLogout);
@@ -51,6 +52,14 @@ function setupEventListeners() {
         showScreen('upgrade');
     });
     document.getElementById('upgrade-back-btn').addEventListener('click', () => showScreen('main'));
+    
+    document.getElementById('feedback-link').addEventListener('click', (e) => {
+        e.preventDefault();
+        handleSendFeedback();
+    });
+    
+    document.getElementById('subscribe-btn').addEventListener('click', handleSubscribe);
+    document.getElementById('subscribe-welcome-btn').addEventListener('click', handleSubscribe);
 }
 
 function showScreen(screenName) {
@@ -78,11 +87,54 @@ async function handleSignup() {
         if (response.ok) {
             showToast('Account created! Please login.');
             showScreen('login');
+            document.getElementById('login-email').value = email;
         } else {
-            showToast('Registration failed');
+            let errorMsg = 'Registration failed';
+            
+            try {
+                const text = await response.text();
+                let errorData = {};
+                
+                if (text) {
+                    try {
+                        errorData = JSON.parse(text);
+                    } catch (e) {
+                        errorMsg = text || `Registration failed (HTTP ${response.status})`;
+                        showToast(errorMsg);
+                        return;
+                    }
+                }
+                
+                if (errorData.detail) {
+                    if (typeof errorData.detail === 'string') {
+                        errorMsg = errorData.detail;
+                    } else if (Array.isArray(errorData.detail)) {
+                        errorMsg = errorData.detail.map(e => {
+                            if (typeof e === 'string') return e;
+                            const field = e.loc && e.loc.length > 1 ? e.loc[e.loc.length - 1] : 'field';
+                            const message = e.msg || e.message || 'Validation error';
+                            return `${field}: ${message}`;
+                        }).join('; ');
+                    } else if (errorData.detail.message) {
+                        errorMsg = errorData.detail.message;
+                    } else if (typeof errorData.detail === 'object') {
+                        errorMsg = errorData.detail.message || JSON.stringify(errorData.detail);
+                    }
+                } else if (errorData.message) {
+                    errorMsg = errorData.message;
+                } else if (text && !errorData.detail) {
+                    errorMsg = text;
+                }
+            } catch (parseError) {
+                errorMsg = `Registration failed (HTTP ${response.status})`;
+            }
+            
+            showToast(errorMsg);
+            console.error('Registration error:', response.status, errorMsg);
         }
     } catch (error) {
-        showToast('Network error');
+        showToast(`Network error: ${error.message}`);
+        console.error('Registration network error:', error);
     }
 }
 
@@ -103,11 +155,54 @@ async function handleLogin() {
             await chrome.storage.local.set({ user: currentUser });
             showScreen('main');
             await loadContexts();
+            showToast('Login successful!');
         } else {
-            showToast('Login failed');
+            let errorMsg = 'Login failed';
+            
+            try {
+                const text = await response.text();
+                let errorData = {};
+                
+                if (text) {
+                    try {
+                        errorData = JSON.parse(text);
+                    } catch (e) {
+                        errorMsg = text || `Login failed (HTTP ${response.status})`;
+                        showToast(errorMsg);
+                        return;
+                    }
+                }
+                
+                if (errorData.detail) {
+                    if (typeof errorData.detail === 'string') {
+                        errorMsg = errorData.detail;
+                    } else if (Array.isArray(errorData.detail)) {
+                        errorMsg = errorData.detail.map(e => {
+                            if (typeof e === 'string') return e;
+                            const field = e.loc && e.loc.length > 1 ? e.loc[e.loc.length - 1] : 'field';
+                            const message = e.msg || e.message || 'Validation error';
+                            return `${field}: ${message}`;
+                        }).join('; ');
+                    } else if (errorData.detail.message) {
+                        errorMsg = errorData.detail.message;
+                    } else if (typeof errorData.detail === 'object') {
+                        errorMsg = errorData.detail.message || JSON.stringify(errorData.detail);
+                    }
+                } else if (errorData.message) {
+                    errorMsg = errorData.message;
+                } else if (text && !errorData.detail) {
+                    errorMsg = text;
+                }
+            } catch (parseError) {
+                errorMsg = `Login failed (HTTP ${response.status})`;
+            }
+            
+            showToast(errorMsg);
+            console.error('Login error:', response.status, errorMsg);
         }
     } catch (error) {
-        showToast('Network error');
+        showToast(`Network error: ${error.message}. Is backend running on localhost:8000?`);
+        console.error('Login network error:', error);
     }
 }
 
@@ -389,13 +484,85 @@ async function handleSave() {
             await loadContexts();
             showVersions();
         } else {
-            const errorData = await response.json().catch(() => ({}));
-            console.error('Save failed:', response.status, errorData);
-            showToast(`Failed to save: ${errorData.detail || response.statusText}`);
+            let errorMsg = 'Failed to save';
+            
+            try {
+                const text = await response.text();
+                let errorData = {};
+                
+                if (text) {
+                    try {
+                        errorData = JSON.parse(text);
+                    } catch (e) {
+                        errorMsg = text || `Failed to save (HTTP ${response.status})`;
+                        showToast(errorMsg);
+                        return;
+                    }
+                }
+                
+                if (errorData.detail) {
+                    if (typeof errorData.detail === 'string') {
+                        errorMsg = errorData.detail;
+                    } else if (Array.isArray(errorData.detail)) {
+                        errorMsg = errorData.detail.map(e => {
+                            if (typeof e === 'string') return e;
+                            const field = e.loc && e.loc.length > 1 ? e.loc[e.loc.length - 1] : 'field';
+                            const message = e.msg || e.message || 'Validation error';
+                            return `${field}: ${message}`;
+                        }).join('; ');
+                    } else if (errorData.detail.message) {
+                        errorMsg = errorData.detail.message;
+                    } else if (typeof errorData.detail === 'object') {
+                        errorMsg = errorData.detail.message || JSON.stringify(errorData.detail);
+                    }
+                } else if (errorData.message) {
+                    errorMsg = errorData.message;
+                } else if (text && !errorData.detail) {
+                    errorMsg = text;
+                } else if (response.statusText) {
+                    errorMsg = response.statusText;
+                }
+            } catch (parseError) {
+                errorMsg = `Failed to save (HTTP ${response.status})`;
+            }
+            
+            showToast(errorMsg);
+            console.error('Save failed:', response.status, errorMsg);
         }
     } catch (error) {
         console.error('Network error:', error);
         showToast('Network error: ' + error.message);
+    }
+}
+
+function handleSendFeedback() {
+    const subject = encodeURIComponent('RememberMyContext - Feedback');
+    const body = encodeURIComponent('Hi,\n\nI wanted to share the following feedback:\n\n');
+    window.location.href = `mailto:support@remembermycontext.com?subject=${subject}&body=${body}`;
+}
+
+function handleSubscribe() {
+    const emailInput = document.getElementById('subscribe-email');
+    const email = emailInput ? emailInput.value.trim() : '';
+    
+    if (!email) {
+        showToast('Please enter your email address');
+        return;
+    }
+    
+    if (!email.includes('@')) {
+        showToast('Please enter a valid email address');
+        return;
+    }
+    
+    const subject = encodeURIComponent('RememberMyContext - Subscribe for Updates');
+    const body = encodeURIComponent(`Hi,\n\nI would like to subscribe for updates about RememberMyContext.\n\nEmail: ${email}\n\nThank you!`);
+    window.location.href = `mailto:support@remembermycontext.com?subject=${subject}&body=${body}`;
+    
+    showToast('Opening email client...');
+    
+    if (emailInput) {
+        emailInput.value = '';
     }
 }
 

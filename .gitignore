@@ -1,5 +1,11 @@
-.venv
 .env
+__pycache__/
+*.pyc
+.venv/
 dev.db
-test.db
-__pycache__
+*.log
+logs/
+.DS_Store
+uv.lock
+dump/
+logo/
