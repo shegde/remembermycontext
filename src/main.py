@@ -49,15 +49,27 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "chrome-extension://*",
+def get_allowed_origins():
+    origins = [
         "http://localhost:3000",
         "http://localhost:8000",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:8000"
-    ],
+    ]
+    
+    if settings.ALLOWED_ORIGINS:
+        origins.extend([origin.strip() for origin in settings.ALLOWED_ORIGINS.split(",")])
+    
+    is_production = "localhost" not in str(settings.DATABASE_URL) and "127.0.0.1" not in str(settings.DATABASE_URL)
+    
+    if not is_production:
+        origins.append("chrome-extension://*")
+    
+    return origins
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=get_allowed_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

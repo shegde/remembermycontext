@@ -1,7 +1,7 @@
 from sqlmodel import Session, select
 from typing import List, Optional, Dict
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, timezone
 
 from ..models import ContextVersion
 from ..services.crypto import crypto_service
@@ -9,22 +9,27 @@ from ..logging_config import logger
 
 
 def create_context_version(session: Session, user_id: UUID, box_name: str, text: str) -> ContextVersion:
-    latest_version = get_latest_version_number(session, user_id, box_name)
-    version_number = latest_version + 1
-    
-    ciphertext = crypto_service.encrypt(text)
-    
-    context_version = ContextVersion(
-        user_id=user_id,
-        box_name=box_name,
-        version_number=version_number,
-        ciphertext=ciphertext
-    )
-    session.add(context_version)
-    session.commit()
-    session.refresh(context_version)
-    logger.info(f"Context version created: {box_name} v{version_number} for user {user_id}")
-    return context_version
+    try:
+        latest_version = get_latest_version_number(session, user_id, box_name)
+        version_number = latest_version + 1
+        
+        ciphertext = crypto_service.encrypt(text)
+        
+        context_version = ContextVersion(
+            user_id=user_id,
+            box_name=box_name,
+            version_number=version_number,
+            ciphertext=ciphertext
+        )
+        session.add(context_version)
+        session.commit()
+        session.refresh(context_version)
+        logger.info(f"Context version created: {box_name} v{version_number} for user {user_id}")
+        return context_version
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Failed to create context version: {str(e)}")
+        raise
 
 
 def get_latest_version_number(session: Session, user_id: UUID, box_name: str) -> int:
@@ -59,13 +64,18 @@ def get_context_version(
 
 
 def mark_version_used(session: Session, user_id: UUID, box_name: str, version_number: int, site: str):
-    version = get_context_version(session, user_id, box_name, version_number)
-    if version:
-        version.uses_count += 1
-        version.last_used_at = datetime.utcnow()
-        session.add(version)
-        session.commit()
-        logger.info(f"Context version marked as used: {box_name} v{version_number} on {site}")
+    try:
+        version = get_context_version(session, user_id, box_name, version_number)
+        if version:
+            version.uses_count += 1
+            version.last_used_at = datetime.now(timezone.utc)
+            session.add(version)
+            session.commit()
+            logger.info(f"Context version marked as used: {box_name} v{version_number} on {site}")
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Failed to mark version as used: {str(e)}")
+        raise
 
 
 def get_user_contexts_summary(session: Session, user_id: UUID) -> List[Dict]:

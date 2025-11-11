@@ -17,6 +17,8 @@ const LLM_SITES = [
 ];
 
 let currentUser = null;
+let isLoadingDashboard = false;
+let isDisplayingContextBoxes = false;
 
 document.addEventListener('DOMContentLoaded', async () => {
     await initializeDashboard();
@@ -29,7 +31,6 @@ async function initializeDashboard() {
         return;
     }
     
-    // Verify token is still valid
     try {
         const response = await fetch(`${API_BASE}/contexts`, {
             headers: { 'Authorization': `Bearer ${token}` }
@@ -44,14 +45,32 @@ async function initializeDashboard() {
             showLoginForm();
         }
     } catch (error) {
-        console.error('Auth check failed:', error);
         localStorage.removeItem('access_token');
         showLoginForm();
     }
 }
 
 async function loadDashboard() {
+    if (isLoadingDashboard) {
+        return;
+    }
+    
+    if (!currentUser || !currentUser.access_token) {
+        showError('Not authenticated. Please login.');
+        showLoginForm();
+        return;
+    }
+    
+    isLoadingDashboard = true;
+    
     try {
+        const container = document.getElementById('context-boxes');
+        if (container) {
+            while (container.firstChild) {
+                container.removeChild(container.firstChild);
+            }
+        }
+        
         const [contextsResponse, analyticsResponse] = await Promise.all([
             fetch(`${API_BASE}/contexts`, {
                 headers: { 'Authorization': `Bearer ${currentUser.access_token}` }
@@ -62,7 +81,14 @@ async function loadDashboard() {
         ]);
         
         if (!contextsResponse.ok) {
-            throw new Error('Failed to load contexts');
+            if (contextsResponse.status === 401) {
+                localStorage.removeItem('access_token');
+                showError('Session expired. Please login again.');
+                showLoginForm();
+                isLoadingDashboard = false;
+                return;
+            }
+            throw new Error(`Failed to load contexts: ${contextsResponse.status}`);
         }
         
         const contexts = await contextsResponse.json();
@@ -75,38 +101,87 @@ async function loadDashboard() {
         
         document.getElementById('loading').style.display = 'none';
         document.getElementById('dashboard-content').style.display = 'block';
+        isLoadingDashboard = false;
         
     } catch (error) {
-        showError('Failed to load dashboard: ' + error.message);
+        const errorMsg = error.message || 'Unknown error';
+        showError('Failed to load dashboard: ' + errorMsg);
+        document.getElementById('loading').style.display = 'none';
+        isLoadingDashboard = false;
+        
+        if (errorMsg.includes('401') || errorMsg.includes('Unauthorized') || errorMsg.includes('Session expired')) {
+            localStorage.removeItem('access_token');
+            setTimeout(() => {
+                showLoginForm();
+            }, 2000);
+        }
     }
 }
 
 function displayContextBoxes(contexts) {
-    const container = document.getElementById('context-boxes');
-    const defaultBoxes = ['Career', 'Work', 'Health', 'Travel', 'Custom'];
+    if (isDisplayingContextBoxes) {
+        return;
+    }
     
-    defaultBoxes.forEach(boxName => {
-        const context = contexts.find(c => c.box_name === boxName);
-        const card = document.createElement('div');
-        card.className = 'dashboard-card';
+    const container = document.getElementById('context-boxes');
+    if (!container) {
+        return;
+    }
+    
+    isDisplayingContextBoxes = true;
+    
+    try {
+        while (container.firstChild) {
+            container.removeChild(container.firstChild);
+        }
         
-        const emoji = getBoxEmoji(boxName);
-        const lastUsed = context?.last_used_at ? 
-            new Date(context.last_used_at).toLocaleString() : 'Never';
+        const defaultBoxes = ['Career', 'Work', 'Health', 'Travel', 'Custom'];
         
-        card.innerHTML = `
-            <h3>${emoji} ${boxName}</h3>
-            <div class="dashboard-stats">
-                <strong>${context?.versions_count || 0} versions</strong><br>
-                ${context?.total_uses || 0} total uses<br>
-                Last used: ${lastUsed}
-            </div>
-            <button class="btn btn-primary" style="width: 100%; margin-top: 15px;" 
-                    onclick="viewVersions('${boxName}')">View Versions</button>
-        `;
-        
-        container.appendChild(card);
-    });
+        defaultBoxes.forEach(boxName => {
+            const context = contexts.find(c => c.box_name === boxName);
+            const card = document.createElement('div');
+            card.className = 'dashboard-card';
+            
+            const emoji = getBoxEmoji(boxName);
+            const lastUsed = context?.last_used_at ? 
+                new Date(context.last_used_at).toLocaleString() : 'Never';
+            
+            const title = document.createElement('h3');
+            title.textContent = `${emoji} ${boxName}`;
+            
+            const stats = document.createElement('div');
+            stats.className = 'dashboard-stats';
+            
+            const versionsText = document.createElement('strong');
+            versionsText.textContent = `${context?.versions_count || 0} versions`;
+            
+            const usesText = document.createTextNode(`${context?.total_uses || 0} total uses`);
+            const lastUsedText = document.createTextNode(`Last used: ${lastUsed}`);
+            
+            stats.appendChild(versionsText);
+            stats.appendChild(document.createElement('br'));
+            stats.appendChild(usesText);
+            stats.appendChild(document.createElement('br'));
+            stats.appendChild(lastUsedText);
+            
+            const button = document.createElement('button');
+            button.className = 'btn btn-primary';
+            button.style.width = '100%';
+            button.style.marginTop = '15px';
+            button.textContent = 'View Versions';
+            button.addEventListener('click', () => {
+                viewVersions(boxName);
+            });
+            
+            card.appendChild(title);
+            card.appendChild(stats);
+            card.appendChild(button);
+            
+            container.appendChild(card);
+        });
+    } finally {
+        isDisplayingContextBoxes = false;
+    }
 }
 
 function getBoxEmoji(boxName) {
@@ -268,7 +343,6 @@ async function viewVersions(boxName) {
                         }
                     }
                 } catch (err) {
-                    console.error('Failed to fetch version text:', err);
                 }
                 return { ...version, text: 'Unable to load text' };
             }));
@@ -283,60 +357,100 @@ async function viewVersions(boxName) {
 }
 
 function showVersionsModal(boxName, versions) {
-    // Create modal overlay
     const modal = document.createElement('div');
     modal.id = 'versions-modal';
-    modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000;';
+    modal.className = 'modal-overlay';
     
-    // Create modal content
     const modalContent = document.createElement('div');
-    modalContent.style.cssText = 'background: white; padding: 30px; border-radius: 8px; max-width: 600px; max-height: 80vh; overflow-y: auto; width: 90%;';
+    modalContent.className = 'modal-content';
     
-    const emoji = getBoxEmoji(boxName);
+    const header = document.createElement('div');
+    header.className = 'modal-header';
     
-    modalContent.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h2 style="margin: 0;">${emoji} ${boxName} Versions</h2>
-            <button onclick="document.getElementById('versions-modal').remove()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666;">&times;</button>
-        </div>
-        <div id="versions-list"></div>
-    `;
+    const title = document.createElement('h2');
+    title.style.margin = '0';
+    title.textContent = `${getBoxEmoji(boxName)} ${boxName} Versions`;
     
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'modal-close-btn';
+    closeBtn.textContent = '×';
+    closeBtn.addEventListener('click', () => {
+        modal.remove();
+    });
+    
+    header.appendChild(title);
+    header.appendChild(closeBtn);
+    
+    const versionsList = document.createElement('div');
+    versionsList.id = 'versions-list-in-modal';
+    
+    modalContent.appendChild(header);
+    modalContent.appendChild(versionsList);
     modal.appendChild(modalContent);
     document.body.appendChild(modal);
     
-    // Display versions
-    const versionsList = document.getElementById('versions-list');
-    
-    if (versions.length === 0) {
-        versionsList.innerHTML = '<p style="color: #666; text-align: center; padding: 20px;">No versions yet</p>';
+    if (!versions || versions.length === 0) {
+        const emptyMsg = document.createElement('p');
+        emptyMsg.className = 'empty-state';
+        emptyMsg.textContent = 'No versions yet';
+        versionsList.appendChild(emptyMsg);
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
         return;
     }
     
+    const latestVersionNumber = Math.max(...versions.map(v => v.version_number));
+    
     versions.forEach(version => {
         const versionItem = document.createElement('div');
-        versionItem.style.cssText = 'padding: 15px; margin: 10px 0; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #007bff;';
+        versionItem.className = 'version-item-card';
         
-        const isLatest = version.version_number === Math.max(...versions.map(v => v.version_number));
+        const itemHeader = document.createElement('div');
+        itemHeader.className = 'version-item-header';
         
-        versionItem.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <strong style="font-size: 16px;">v${version.version_number} ${isLatest ? '<span style="background: #28a745; color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-left: 10px;">Latest</span>' : ''}</strong>
-                <span style="color: #666; font-size: 14px;">${new Date(version.created_at).toLocaleString()}</span>
-            </div>
-            <div style="background: white; padding: 10px; border-radius: 4px; margin: 10px 0; border: 1px solid #ddd; max-height: 150px; overflow-y: auto;">
-                <pre style="margin: 0; white-space: pre-wrap; word-wrap: break-word; font-family: inherit; font-size: 14px;">${version.text || 'Loading...'}</pre>
-            </div>
-            <div style="color: #666; font-size: 14px;">
-                📊 Used ${version.uses_count} times
-                ${version.last_used_at ? `• Last used: ${new Date(version.last_used_at).toLocaleString()}` : '• Never used'}
-            </div>
-        `;
+        const leftDiv = document.createElement('div');
+        const versionStrong = document.createElement('strong');
+        versionStrong.className = 'version-number';
+        versionStrong.textContent = `v${version.version_number}`;
+        leftDiv.appendChild(versionStrong);
         
+        if (version.version_number === latestVersionNumber) {
+            const latestBadge = document.createElement('span');
+            latestBadge.className = 'latest-badge';
+            latestBadge.textContent = 'Latest';
+            leftDiv.appendChild(latestBadge);
+        }
+        
+        const dateSpan = document.createElement('span');
+        dateSpan.className = 'version-date';
+        dateSpan.textContent = new Date(version.created_at).toLocaleString();
+        
+        itemHeader.appendChild(leftDiv);
+        itemHeader.appendChild(dateSpan);
+        
+        const textContainer = document.createElement('div');
+        textContainer.className = 'version-text-container';
+        const textPre = document.createElement('pre');
+        textPre.className = 'version-text';
+        textPre.textContent = version.text || 'Loading...';
+        textContainer.appendChild(textPre);
+        
+        const statsDiv = document.createElement('div');
+        statsDiv.className = 'version-stats';
+        const lastUsed = version.last_used_at 
+            ? new Date(version.last_used_at).toLocaleString() 
+            : 'Never used';
+        statsDiv.textContent = `📊 Used ${version.uses_count} times • Last used: ${lastUsed}`;
+        
+        versionItem.appendChild(itemHeader);
+        versionItem.appendChild(textContainer);
+        versionItem.appendChild(statsDiv);
         versionsList.appendChild(versionItem);
     });
     
-    // Close modal on outside click
     modal.addEventListener('click', (e) => {
         if (e.target === modal) {
             modal.remove();
@@ -350,13 +464,81 @@ function sendFeedback() {
     window.location.href = `mailto:support@remembermycontext.com?subject=${subject}&body=${body}`;
 }
 
-function upgrade() {
-    const email = prompt('Enter your email to be notified when Pro plan is available:');
-    if (email && email.includes('@')) {
-        const subject = encodeURIComponent('RememberMyContext - Pro Plan Interest');
-        const body = encodeURIComponent(`Hi,\n\nI'm interested in the Pro plan.\n\nEmail: ${email}\n\nPlease notify me when it's available.\n\nThank you!`);
-        window.location.href = `mailto:support@remembermycontext.com?subject=${subject}&body=${body}`;
-    }
+window.upgrade = function() {
+    const modal = document.createElement('div');
+    modal.id = 'upgrade-modal';
+    modal.className = 'modal-overlay';
+    
+    const modalContent = document.createElement('div');
+    modalContent.className = 'modal-content modal-content-small';
+    
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'upgrade-modal-content';
+    
+    const title = document.createElement('h2');
+    title.className = 'upgrade-title';
+    title.textContent = 'Pro Plan Features';
+    
+    const featuresDiv = document.createElement('div');
+    featuresDiv.className = 'upgrade-features';
+    
+    const features = [
+        'Unlimited Context Boxes',
+        'Advanced Analytics',
+        'Team Collaboration',
+        'Priority Support',
+        'Export/Import Contexts',
+        'Custom Integrations'
+    ];
+    
+    features.forEach(feature => {
+        const featureItem = document.createElement('div');
+        featureItem.className = 'upgrade-feature-item';
+        const strong = document.createElement('strong');
+        strong.textContent = '✓ ';
+        featureItem.appendChild(strong);
+        featureItem.appendChild(document.createTextNode(feature));
+        featuresDiv.appendChild(featureItem);
+    });
+    
+    const comingSoonDiv = document.createElement('div');
+    comingSoonDiv.className = 'upgrade-coming-soon';
+    const comingSoonTitle = document.createElement('div');
+    comingSoonTitle.className = 'upgrade-coming-soon-title';
+    comingSoonTitle.textContent = 'Coming Soon';
+    const comingSoonSubtitle = document.createElement('div');
+    comingSoonSubtitle.className = 'upgrade-coming-soon-subtitle';
+    comingSoonSubtitle.textContent = 'Pricing details will be announced soon';
+    comingSoonDiv.appendChild(comingSoonTitle);
+    comingSoonDiv.appendChild(comingSoonSubtitle);
+    
+    const footer = document.createElement('div');
+    footer.className = 'upgrade-footer';
+    footer.textContent = 'Pro plan features will be available soon';
+    
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'upgrade-close-btn';
+    closeBtn.textContent = 'Close';
+    closeBtn.addEventListener('click', () => {
+        modal.remove();
+    });
+    
+    contentDiv.appendChild(title);
+    contentDiv.appendChild(featuresDiv);
+    contentDiv.appendChild(comingSoonDiv);
+    contentDiv.appendChild(footer);
+    contentDiv.appendChild(closeBtn);
+    
+    modalContent.appendChild(contentDiv);
+    
+    modal.appendChild(modalContent);
+    document.body.appendChild(modal);
+    
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
 }
 
 function logout() {

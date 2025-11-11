@@ -1,6 +1,6 @@
 from sqlmodel import SQLModel, Field, Relationship, JSON, Column
 from typing import Optional, List, Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
 
@@ -8,7 +8,7 @@ class User(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     email: str = Field(unique=True, index=True)
     password_hash: str
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     
     context_versions: List["ContextVersion"] = Relationship(back_populates="user")
     feedback: List["Feedback"] = Relationship(back_populates="user")
@@ -22,7 +22,7 @@ class ContextVersion(SQLModel, table=True):
     version_number: int
     ciphertext: str
     iv: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     uses_count: int = 0
     last_used_at: Optional[datetime] = None
     
@@ -35,7 +35,7 @@ class Feedback(SQLModel, table=True):
     type: str
     message: str
     email: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     
     user: Optional[User] = Relationship(back_populates="feedback")
 
@@ -45,7 +45,7 @@ class AnalyticsEvent(SQLModel, table=True):
     user_id: Optional[UUID] = Field(default=None, foreign_key="user.id")
     event_type: str
     event_metadata: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     
     user: Optional[User] = Relationship(back_populates="analytics_events")
 

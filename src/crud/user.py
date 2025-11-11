@@ -7,13 +7,18 @@ from ..logging_config import logger
 
 
 def create_user(session: Session, email: str, password: str) -> User:
-    password_hash = get_password_hash(password)
-    user = User(email=email, password_hash=password_hash)
-    session.add(user)
-    session.commit()
-    session.refresh(user)
-    logger.info(f"User created: {email}")
-    return user
+    try:
+        password_hash = get_password_hash(password)
+        user = User(email=email, password_hash=password_hash)
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+        logger.info(f"User created: {email}")
+        return user
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Failed to create user: {str(e)}")
+        raise
 
 
 def get_user_by_email(session: Session, email: str) -> Optional[User]:

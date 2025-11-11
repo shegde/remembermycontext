@@ -198,13 +198,20 @@ body {
     position: fixed;
     top: 20px;
     right: 20px;
-    background: #28a745;
     color: white;
     padding: 10px 20px;
     border-radius: 4px;
     font-size: 14px;
     z-index: 1000;
     display: none;
+}
+
+.toast.success {
+    background: #28a745;
+}
+
+.toast.error {
+    background: #dc3545;
 }
 
 .toast.show {

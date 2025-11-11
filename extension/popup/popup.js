@@ -1,13 +1,18 @@
-const API_BASE = 'http://localhost:8000/api/v1';
-
+let API_BASE = '';
 let currentUser = null;
 let currentBox = null;
 let contextsCache = {};
 
 document.addEventListener('DOMContentLoaded', async () => {
+    await initializeConfig();
     await initializeApp();
     setupEventListeners();
 });
+
+async function initializeConfig() {
+    const config = await getConfig();
+    API_BASE = config.apiBaseUrl;
+}
 
 async function initializeApp() {
     const user = await chrome.storage.local.get(['user']);
@@ -65,12 +70,22 @@ function showScreen(screenName) {
 }
 
 async function handleSignup() {
-    const email = document.getElementById('signup-email').value;
+    const email = document.getElementById('signup-email').value.trim();
     const password = document.getElementById('signup-password').value;
     const confirm = document.getElementById('signup-confirm').value;
     
+    if (!validateEmail(email)) {
+        showToast('Please enter a valid email address', 'error');
+        return;
+    }
+    
+    if (!validatePassword(password)) {
+        showToast('Password must be at least 8 characters long', 'error');
+        return;
+    }
+    
     if (password !== confirm) {
-        showToast('Passwords do not match');
+        showToast('Passwords do not match', 'error');
         return;
     }
     
@@ -86,63 +101,27 @@ async function handleSignup() {
             showScreen('login');
             document.getElementById('login-email').value = email;
         } else {
-            let errorMsg = 'Registration failed';
-            
-            try {
-                const text = await response.text();
-                let errorData = {};
-                
-                if (text) {
-                    try {
-                        errorData = JSON.parse(text);
-                    } catch (e) {
-                        errorMsg = text || `Registration failed (HTTP ${response.status})`;
-                        showToast(errorMsg);
-                        return;
-                    }
-                }
-                
-                if (errorData.detail) {
-                    if (typeof errorData.detail === 'string') {
-                        errorMsg = errorData.detail;
-                    } else if (errorData.detail.message && typeof errorData.detail.message === 'string') {
-                        errorMsg = errorData.detail.message;
-                    } else if (Array.isArray(errorData.detail) && errorData.detail.length > 0) {
-                        errorMsg = errorData.detail.map(e => {
-                            if (typeof e === 'string') return e;
-                            if (e && typeof e === 'object') {
-                                const field = e.loc && Array.isArray(e.loc) && e.loc.length > 1 ? e.loc[e.loc.length - 1] : 'field';
-                                const message = e.msg || e.message || 'Validation error';
-                                return `${field}: ${message}`;
-                            }
-                            return String(e);
-                        }).filter(msg => msg).join('; ');
-                    } else if (typeof errorData.detail === 'object' && errorData.detail !== null) {
-                        errorMsg = errorData.detail.message || JSON.stringify(errorData.detail);
-                    } else {
-                        errorMsg = String(errorData.detail);
-                    }
-                } else if (errorData.message) {
-                    errorMsg = errorData.message;
-                } else if (text && !errorData.detail) {
-                    errorMsg = text;
-                }
-            } catch (parseError) {
-                errorMsg = `Registration failed (HTTP ${response.status})`;
-            }
-            
-            showToast(errorMsg);
-            console.error('Registration error:', response.status, errorMsg);
+            const errorMsg = await parseApiError(response, 'Registration failed');
+            showToast(errorMsg, 'error');
         }
     } catch (error) {
-        showToast(`Network error: ${error.message}`);
-        console.error('Registration network error:', error);
+        showToast(`Network error: ${error.message}`, 'error');
     }
 }
 
 async function handleLogin() {
-    const email = document.getElementById('login-email').value;
+    const email = document.getElementById('login-email').value.trim();
     const password = document.getElementById('login-password').value;
+    
+    if (!validateEmail(email)) {
+        showToast('Please enter a valid email address', 'error');
+        return;
+    }
+    
+    if (!password) {
+        showToast('Please enter your password', 'error');
+        return;
+    }
     
     try {
         const response = await fetch(`${API_BASE}/auth/login`, {
@@ -159,57 +138,11 @@ async function handleLogin() {
             await loadContexts();
             showToast('Login successful!');
         } else {
-            let errorMsg = 'Login failed';
-            
-            try {
-                const text = await response.text();
-                let errorData = {};
-                
-                if (text) {
-                    try {
-                        errorData = JSON.parse(text);
-                    } catch (e) {
-                        errorMsg = text || `Login failed (HTTP ${response.status})`;
-                        showToast(errorMsg);
-                        return;
-                    }
-                }
-                
-                if (errorData.detail) {
-                    if (typeof errorData.detail === 'string') {
-                        errorMsg = errorData.detail;
-                    } else if (errorData.detail.message && typeof errorData.detail.message === 'string') {
-                        errorMsg = errorData.detail.message;
-                    } else if (Array.isArray(errorData.detail) && errorData.detail.length > 0) {
-                        errorMsg = errorData.detail.map(e => {
-                            if (typeof e === 'string') return e;
-                            if (e && typeof e === 'object') {
-                                const field = e.loc && Array.isArray(e.loc) && e.loc.length > 1 ? e.loc[e.loc.length - 1] : 'field';
-                                const message = e.msg || e.message || 'Validation error';
-                                return `${field}: ${message}`;
-                            }
-                            return String(e);
-                        }).filter(msg => msg).join('; ');
-                    } else if (typeof errorData.detail === 'object' && errorData.detail !== null) {
-                        errorMsg = errorData.detail.message || JSON.stringify(errorData.detail);
-                    } else {
-                        errorMsg = String(errorData.detail);
-                    }
-                } else if (errorData.message) {
-                    errorMsg = errorData.message;
-                } else if (text && !errorData.detail) {
-                    errorMsg = text;
-                }
-            } catch (parseError) {
-                errorMsg = `Login failed (HTTP ${response.status})`;
-            }
-            
-            showToast(errorMsg);
-            console.error('Login error:', response.status, errorMsg);
+            const errorMsg = await parseApiError(response, 'Login failed');
+            showToast(errorMsg, 'error');
         }
     } catch (error) {
-        showToast(`Network error: ${error.message}. Is backend running on localhost:8000?`);
-        console.error('Login network error:', error);
+        showToast(`Network error: ${error.message}`, 'error');
     }
 }
 
@@ -237,7 +170,6 @@ async function loadContexts() {
             updateContextBoxes();
         }
     } catch (error) {
-        console.error('Failed to load contexts:', error);
     }
 }
 
@@ -289,7 +221,6 @@ async function loadVersions() {
             displayVersions(versions);
         }
     } catch (error) {
-        console.error('Failed to load versions:', error);
     }
 }
 
@@ -297,44 +228,76 @@ function displayVersions(versions) {
     const container = document.getElementById('versions-list');
     container.innerHTML = '';
     
+    if (!versions || versions.length === 0) {
+        const emptyMsg = createElement('div', 'info-box', 'No versions yet');
+        container.appendChild(emptyMsg);
+        return;
+    }
+    
+    const latestVersionNumber = Math.max(...versions.map(v => v.version_number));
+    
     versions.forEach(version => {
-        const versionElement = document.createElement('div');
-        versionElement.className = 'version-item';
-        versionElement.innerHTML = `
-            <div class="version-header">
-                <div>
-                    <strong>v${version.version_number}</strong>
-                    ${version.version_number === Math.max(...versions.map(v => v.version_number)) ? '(Latest)' : ''}
-                    <div style="font-size: 11px; color: #666;">${new Date(version.created_at).toLocaleString()}</div>
-                </div>
-                <div style="display: flex; gap: 5px;">
-                    <button class="btn btn-success copy-btn" style="padding: 5px 10px; font-size: 12px;" 
-                            data-box="${currentBox}" data-version="${version.version_number}">Copy</button>
-                    <button class="btn btn-primary insert-btn" style="padding: 5px 10px; font-size: 12px;" 
-                            data-box="${currentBox}" data-version="${version.version_number}">Insert</button>
-                </div>
-            </div>
-            <div class="usage-stats">
-                📊 Used ${version.uses_count} times • Last: ${version.last_used_at ? new Date(version.last_used_at).toLocaleString() : 'Never'}
-            </div>
-        `;
+        const versionElement = createElement('div', 'version-item');
+        
+        const header = createElement('div', 'version-header');
+        
+        const leftDiv = createElement('div');
+        const versionStrong = createElement('strong');
+        versionStrong.textContent = `v${version.version_number}`;
+        leftDiv.appendChild(versionStrong);
+        
+        if (version.version_number === latestVersionNumber) {
+            const latestBadge = createElement('span', null, '(Latest)');
+            latestBadge.style.marginLeft = '10px';
+            latestBadge.style.color = '#28a745';
+            leftDiv.appendChild(latestBadge);
+        }
+        
+        const dateDiv = createElement('div');
+        dateDiv.style.fontSize = '11px';
+        dateDiv.style.color = '#666';
+        dateDiv.textContent = new Date(version.created_at).toLocaleString();
+        leftDiv.appendChild(dateDiv);
+        
+        const buttonDiv = createElement('div');
+        buttonDiv.style.display = 'flex';
+        buttonDiv.style.gap = '5px';
+        
+        const copyBtn = createElement('button', 'btn btn-success copy-btn');
+        copyBtn.textContent = 'Copy';
+        copyBtn.style.padding = '5px 10px';
+        copyBtn.style.fontSize = '12px';
+        copyBtn.dataset.box = currentBox;
+        copyBtn.dataset.version = version.version_number.toString();
+        copyBtn.addEventListener('click', () => {
+            copyVersion(currentBox, version.version_number);
+        });
+        
+        const insertBtn = createElement('button', 'btn btn-primary insert-btn');
+        insertBtn.textContent = 'Insert';
+        insertBtn.style.padding = '5px 10px';
+        insertBtn.style.fontSize = '12px';
+        insertBtn.dataset.box = currentBox;
+        insertBtn.dataset.version = version.version_number.toString();
+        insertBtn.addEventListener('click', () => {
+            insertVersion(currentBox, version.version_number);
+        });
+        
+        buttonDiv.appendChild(copyBtn);
+        buttonDiv.appendChild(insertBtn);
+        
+        header.appendChild(leftDiv);
+        header.appendChild(buttonDiv);
+        
+        const usageStats = createElement('div', 'usage-stats');
+        const lastUsed = version.last_used_at 
+            ? new Date(version.last_used_at).toLocaleString() 
+            : 'Never';
+        usageStats.textContent = `📊 Used ${version.uses_count} times • Last: ${lastUsed}`;
+        
+        versionElement.appendChild(header);
+        versionElement.appendChild(usageStats);
         container.appendChild(versionElement);
-    });
-    
-    container.querySelectorAll('.copy-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const box = e.target.dataset.box;
-            const version = parseInt(e.target.dataset.version);
-            copyVersion(box, version);
-        });
-    });
-    
-    container.querySelectorAll('.insert-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const box = e.target.dataset.box;
-            const version = parseInt(e.target.dataset.version);
-            insertVersion(box, version);
-        });
     });
 }
 
@@ -363,7 +326,7 @@ async function copyVersion(boxName, versionNumber) {
             });
         }
     } catch (error) {
-        showToast('Failed to copy');
+        showToast('Failed to copy', 'error');
     }
 }
 
@@ -410,7 +373,7 @@ async function insertVersion(boxName, versionNumber) {
             });
         }
     } catch (error) {
-        showToast('Failed to insert');
+        showToast('Failed to insert', 'error');
     }
 }
 
@@ -454,7 +417,6 @@ async function showEdit() {
                 document.getElementById('context-text').value = decryptedText;
             }
         } catch (error) {
-            console.error('Failed to load latest version:', error);
         }
     } else {
         document.getElementById('context-text').value = '';
@@ -464,15 +426,21 @@ async function showEdit() {
 }
 
 async function handleSave() {
-    const text = document.getElementById('context-text').value;
-    if (!text.trim()) {
-        showToast('Please enter some context');
+    const text = document.getElementById('context-text').value.trim();
+    
+    if (!text) {
+        showToast('Please enter some context', 'error');
         return;
     }
     
     if (!currentUser || !currentUser.access_token) {
-        showToast('Please login first');
+        showToast('Please login first', 'error');
         showScreen('welcome');
+        return;
+    }
+    
+    if (!currentBox) {
+        showToast('No context box selected', 'error');
         return;
     }
     
@@ -491,59 +459,11 @@ async function handleSave() {
             await loadContexts();
             showVersions();
         } else {
-            let errorMsg = 'Failed to save';
-            
-            try {
-                const text = await response.text();
-                let errorData = {};
-                
-                if (text) {
-                    try {
-                        errorData = JSON.parse(text);
-                    } catch (e) {
-                        errorMsg = text || `Failed to save (HTTP ${response.status})`;
-                        showToast(errorMsg);
-                        return;
-                    }
-                }
-                
-                if (errorData.detail) {
-                    if (typeof errorData.detail === 'string') {
-                        errorMsg = errorData.detail;
-                    } else if (errorData.detail.message && typeof errorData.detail.message === 'string') {
-                        errorMsg = errorData.detail.message;
-                    } else if (Array.isArray(errorData.detail) && errorData.detail.length > 0) {
-                        errorMsg = errorData.detail.map(e => {
-                            if (typeof e === 'string') return e;
-                            if (e && typeof e === 'object') {
-                                const field = e.loc && Array.isArray(e.loc) && e.loc.length > 1 ? e.loc[e.loc.length - 1] : 'field';
-                                const message = e.msg || e.message || 'Validation error';
-                                return `${field}: ${message}`;
-                            }
-                            return String(e);
-                        }).filter(msg => msg).join('; ');
-                    } else if (typeof errorData.detail === 'object' && errorData.detail !== null) {
-                        errorMsg = errorData.detail.message || JSON.stringify(errorData.detail);
-                    } else {
-                        errorMsg = String(errorData.detail);
-                    }
-                } else if (errorData.message) {
-                    errorMsg = errorData.message;
-                } else if (text && !errorData.detail) {
-                    errorMsg = text;
-                } else if (response.statusText) {
-                    errorMsg = response.statusText;
-                }
-            } catch (parseError) {
-                errorMsg = `Failed to save (HTTP ${response.status})`;
-            }
-            
-            showToast(errorMsg);
-            console.error('Save failed:', response.status, errorMsg);
+            const errorMsg = await parseApiError(response, 'Failed to save');
+            showToast(errorMsg, 'error');
         }
     } catch (error) {
-        console.error('Network error:', error);
-        showToast('Network error: ' + error.message);
+        showToast(`Network error: ${error.message}`, 'error');
     }
 }
 
@@ -553,9 +473,13 @@ function handleSendFeedback() {
     window.location.href = `mailto:support@remembermycontext.com?subject=${subject}&body=${body}`;
 }
 
-function showToast(message) {
+function showToast(message, type = 'success') {
     const toast = document.getElementById('toast');
     toast.textContent = message;
+    toast.className = `toast ${type}`;
     toast.classList.add('show');
-    setTimeout(() => toast.classList.remove('show'), 3000);
+    setTimeout(() => {
+        toast.classList.remove('show');
+        toast.className = 'toast';
+    }, 3000);
 }

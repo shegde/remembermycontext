@@ -72,6 +72,14 @@ def get_version(
     current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session)
 ):
+    if version_number < 0:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "message": "Version number must be non-negative",
+                "error_code": ErrorCode.VALIDATION_ERROR
+            }
+        )
     version = get_context_version(session, current_user.id, box_name.value, version_number)
     if not version:
         raise HTTPException(
@@ -96,6 +104,14 @@ def mark_version_used_endpoint(
     current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session)
 ):
+    if version_number < 0:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "message": "Version number must be non-negative",
+                "error_code": ErrorCode.VALIDATION_ERROR
+            }
+        )
     mark_version_used(session, current_user.id, box_name.value, version_number, request.site)
     return {"ok": True}
 
