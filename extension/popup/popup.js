@@ -39,6 +39,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function initializeConfig() {
     const config = await getConfig();
     API_BASE = config.apiBaseUrl;
+    if (config.calendlyLink) {
+        const calendlyLink = document.getElementById('feedback-calendly-link');
+        if (calendlyLink) {
+            calendlyLink.href = config.calendlyLink;
+        }
+    }
 }
 
 async function initializeApp() {
@@ -105,9 +111,11 @@ function setupEventListeners() {
     
     const feedbackCalendlyLink = document.getElementById('feedback-calendly-link');
     if (feedbackCalendlyLink) {
-        feedbackCalendlyLink.addEventListener('click', (e) => {
+        feedbackCalendlyLink.addEventListener('click', async (e) => {
             e.preventDefault();
-            chrome.tabs.create({ url: 'https://google.com' });
+            const config = await getConfig();
+            const calendlyUrl = config.calendlyLink || 'https://calendly.com';
+            chrome.tabs.create({ url: calendlyUrl });
         });
     }
     
@@ -483,12 +491,10 @@ async function insertVersion(boxName, versionNumber) {
             const data = await response.json();
             const decryptedText = await decryptText(data.ciphertext);
             
-            // Get current tab URL
             const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
             const currentSite = tabs[0] ? new URL(tabs[0].url).hostname : 'unknown';
             const llmName = getLLMName(currentSite);
             
-            // Send message to background script to insert text
             await chrome.runtime.sendMessage({
                 action: "insertText",
                 text: decryptedText
@@ -548,7 +554,6 @@ async function showEdit() {
     const latestVersion = context?.latest_version_number || 0;
     document.getElementById('next-version').textContent = latestVersion + 1;
     
-    // Fetch and pre-fill latest version text
     if (latestVersion >= 0 && context && context.versions_count > 0) {
         try {
             const response = await fetch(`${API_BASE}/contexts/${currentBox}/versions/${latestVersion}`, {

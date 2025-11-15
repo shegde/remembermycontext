@@ -319,7 +319,6 @@ async function viewVersions(boxName) {
         if (response.ok) {
             const versions = await response.json();
             
-            // Fetch and decrypt text for each version
             const versionsWithText = await Promise.all(versions.map(async (version) => {
                 try {
                     const versionResponse = await fetch(`${API_BASE}/contexts/${boxName}/versions/${version.version_number}`, {
@@ -563,7 +562,6 @@ function showLoginForm() {
     document.getElementById('dashboard-content').style.display = 'none';
     document.getElementById('error').style.display = 'none';
     
-    // Create login form if it doesn't exist
     if (!document.getElementById('login-form')) {
         const loginForm = document.createElement('div');
         loginForm.id = 'login-form';
@@ -681,7 +679,6 @@ function showRegisterForm() {
         `;
         document.body.appendChild(registerForm);
         
-        // Add event listener
         document.getElementById('register-form-element').addEventListener('submit', handleRegister);
     }
     
@@ -710,7 +707,6 @@ async function handleRegister(e) {
         });
         
         if (response.ok) {
-            // Auto-login after successful registration
             const loginResponse = await fetch(`${API_BASE}/auth/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

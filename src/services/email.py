@@ -1,6 +1,4 @@
-import os
 import resend
-from typing import Optional
 from ..config import settings
 from ..logging_config import logger
 

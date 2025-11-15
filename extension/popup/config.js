@@ -1,8 +1,9 @@
 const CONFIG_STORAGE_KEY = 'remembermycontext_config';
 
 const DEFAULT_CONFIG = {
-    apiBaseUrl: 'https://your-render-app.onrender.com/api/v1',
-    isProduction: true
+    apiBaseUrl: '',
+    isProduction: true,
+    calendlyLink: ''
 };
 
 async function getConfig() {
