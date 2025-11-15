@@ -31,6 +31,7 @@ class ContextBoxSummary(BaseModel):
 
 class MarkUsedRequest(BaseModel):
     site: str = Field(min_length=1, max_length=255)
+    llm_name: Optional[str] = Field(default=None, max_length=100)
 
 
 class DecryptRequest(BaseModel):

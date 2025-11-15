@@ -144,7 +144,7 @@ function displayContextBoxes(contexts) {
             
             const emoji = getBoxEmoji(boxName);
             const lastUsed = context?.last_used_at ? 
-                new Date(context.last_used_at).toLocaleString() : 'Never';
+                formatDateTime(context.last_used_at) : 'Never';
             
             const title = document.createElement('h3');
             title.textContent = `${emoji} ${boxName}`;
@@ -243,7 +243,7 @@ function displayRecentActivity(activities) {
         const item = document.createElement('div');
         item.className = 'activity-item';
         
-        const time = new Date(activity.created_at).toLocaleString();
+        const time = formatDateTime(activity.created_at);
         const description = getActivityDescription(activity);
         
         item.innerHTML = `
@@ -426,7 +426,7 @@ function showVersionsModal(boxName, versions) {
         
         const dateSpan = document.createElement('span');
         dateSpan.className = 'version-date';
-        dateSpan.textContent = new Date(version.created_at).toLocaleString();
+        dateSpan.textContent = formatDateTime(version.created_at);
         
         itemHeader.appendChild(leftDiv);
         itemHeader.appendChild(dateSpan);
@@ -440,10 +440,16 @@ function showVersionsModal(boxName, versions) {
         
         const statsDiv = document.createElement('div');
         statsDiv.className = 'version-stats';
-        const lastUsed = version.last_used_at 
-            ? new Date(version.last_used_at).toLocaleString() 
-            : 'Never used';
-        statsDiv.textContent = `📊 Used ${version.uses_count} times • Last used: ${lastUsed}`;
+        let lastUsedText = 'Never used';
+        if (version.last_used_at) {
+            const lastUsedDate = formatDateTime(version.last_used_at);
+            if (version.last_llm_used && version.last_llm_used.trim()) {
+                lastUsedText = `Last used on ${version.last_llm_used} at ${lastUsedDate}`;
+            } else {
+                lastUsedText = `Last used at ${lastUsedDate}`;
+            }
+        }
+        statsDiv.textContent = `📊 Used ${version.uses_count} times • ${lastUsedText}`;
         
         versionItem.appendChild(itemHeader);
         versionItem.appendChild(textContainer);
@@ -617,8 +623,28 @@ async function handleLogin(e) {
             hideLoginForm();
             await loadDashboard();
         } else {
-            const error = await response.json();
-            errorDiv.textContent = error.detail || 'Login failed';
+            const errorData = await response.json().catch(() => ({}));
+            let errorMessage = 'Login failed';
+            
+            if (errorData.detail) {
+                if (typeof errorData.detail === 'string') {
+                    errorMessage = errorData.detail;
+                } else if (errorData.detail.message && typeof errorData.detail.message === 'string') {
+                    errorMessage = errorData.detail.message;
+                } else if (Array.isArray(errorData.detail) && errorData.detail.length > 0) {
+                    errorMessage = errorData.detail.map(e => {
+                        if (typeof e === 'string') return e;
+                        if (e && typeof e === 'object' && e.msg) return e.msg;
+                        return String(e);
+                    }).filter(msg => msg).join('; ');
+                } else {
+                    errorMessage = errorData.detail.message || JSON.stringify(errorData.detail);
+                }
+            } else if (errorData.message) {
+                errorMessage = errorData.message;
+            }
+            
+            errorDiv.textContent = errorMessage;
         }
     } catch (error) {
         errorDiv.textContent = 'Network error. Please try again.';
@@ -699,8 +725,28 @@ async function handleRegister(e) {
                 await loadDashboard();
             }
         } else {
-            const error = await response.json();
-            errorDiv.textContent = error.detail || 'Registration failed';
+            const errorData = await response.json().catch(() => ({}));
+            let errorMessage = 'Registration failed';
+            
+            if (errorData.detail) {
+                if (typeof errorData.detail === 'string') {
+                    errorMessage = errorData.detail;
+                } else if (errorData.detail.message && typeof errorData.detail.message === 'string') {
+                    errorMessage = errorData.detail.message;
+                } else if (Array.isArray(errorData.detail) && errorData.detail.length > 0) {
+                    errorMessage = errorData.detail.map(e => {
+                        if (typeof e === 'string') return e;
+                        if (e && typeof e === 'object' && e.msg) return e.msg;
+                        return String(e);
+                    }).filter(msg => msg).join('; ');
+                } else {
+                    errorMessage = errorData.detail.message || JSON.stringify(errorData.detail);
+                }
+            } else if (errorData.message) {
+                errorMessage = errorData.message;
+            }
+            
+            errorDiv.textContent = errorMessage;
         }
     } catch (error) {
         errorDiv.textContent = 'Network error. Please try again.';

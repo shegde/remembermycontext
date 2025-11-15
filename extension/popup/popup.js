@@ -3,6 +3,33 @@ let currentUser = null;
 let currentBox = null;
 let contextsCache = {};
 
+const LLM_SITES = [
+    'chatgpt.com',
+    'claude.ai',
+    'anthropic.com',
+    'openai.com',
+    'bard.google.com',
+    'gemini.google.com',
+    'perplexity.ai',
+    'poe.com',
+    'character.ai',
+    'you.com',
+    'phind.com',
+    'copilot.microsoft.com',
+    'bing.com'
+];
+
+function getLLMName(hostname) {
+    if (!hostname) return null;
+    const hostnameLower = hostname.toLowerCase();
+    for (const llmSite of LLM_SITES) {
+        if (hostnameLower.includes(llmSite)) {
+            return llmSite;
+        }
+    }
+    return null;
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     await initializeConfig();
     await initializeApp();
@@ -18,28 +45,44 @@ async function initializeApp() {
     const user = await chrome.storage.local.get(['user']);
     if (user.user && user.user.access_token) {
         currentUser = user.user;
-        showScreen('main');
-        await loadContexts();
+        const onboardingStatus = await checkOnboardingStatus();
+        if (!onboardingStatus || !onboardingStatus.completed) {
+            showScreen('onboarding-1');
+        } else {
+            showScreen('main');
+            await loadContexts();
+        }
     } else {
         showScreen('welcome');
     }
 }
 
+function safeAddEventListener(id, event, handler) {
+    try {
+        const element = document.getElementById(id);
+        if (element && typeof element.addEventListener === 'function') {
+            element.addEventListener(event, handler);
+        }
+    } catch (error) {
+        console.warn(`Failed to add event listener to ${id}:`, error);
+    }
+}
+
 function setupEventListeners() {
-    document.getElementById('create-account-btn').addEventListener('click', () => showScreen('signup'));
-    document.getElementById('login-btn').addEventListener('click', () => showScreen('login'));
-    document.getElementById('signup-login-link').addEventListener('click', () => showScreen('login'));
-    document.getElementById('login-signup-link').addEventListener('click', () => showScreen('signup'));
+    safeAddEventListener('create-account-btn', 'click', () => showScreen('signup'));
+    safeAddEventListener('login-btn', 'click', () => showScreen('login'));
+    safeAddEventListener('signup-login-link', 'click', () => showScreen('login'));
+    safeAddEventListener('login-signup-link', 'click', () => showScreen('signup'));
     
-    document.getElementById('signup-submit').addEventListener('click', handleSignup);
-    document.getElementById('login-submit').addEventListener('click', handleLogin);
+    safeAddEventListener('signup-submit', 'click', handleSignup);
+    safeAddEventListener('login-submit', 'click', handleLogin);
     
-    document.getElementById('dashboard-btn').addEventListener('click', () => {
+    safeAddEventListener('dashboard-btn', 'click', () => {
         const dashboardUrl = API_BASE.replace('/api/v1', '/dashboard');
         chrome.tabs.create({ url: dashboardUrl });
     });
     
-    document.getElementById('logout-link').addEventListener('click', handleLogout);
+    safeAddEventListener('logout-link', 'click', handleLogout);
     
     document.querySelectorAll('.context-box').forEach(box => {
         box.addEventListener('click', (e) => {
@@ -48,25 +91,80 @@ function setupEventListeners() {
         });
     });
     
-    document.getElementById('versions-back-btn').addEventListener('click', () => showScreen('main'));
-    document.getElementById('edit-latest-btn').addEventListener('click', () => showEdit());
-    document.getElementById('edit-cancel-btn').addEventListener('click', () => showVersions());
-    document.getElementById('edit-save-btn').addEventListener('click', handleSave);
-    document.getElementById('upgrade-link').addEventListener('click', (e) => {
-        e.preventDefault();
-        showScreen('upgrade');
-    });
-    document.getElementById('upgrade-back-btn').addEventListener('click', () => showScreen('main'));
+    safeAddEventListener('versions-back-btn', 'click', () => showScreen('main'));
+    safeAddEventListener('edit-latest-btn', 'click', () => showEdit());
+    safeAddEventListener('edit-cancel-btn', 'click', () => showVersions());
+    safeAddEventListener('edit-save-btn', 'click', handleSave);
     
-    document.getElementById('feedback-link').addEventListener('click', (e) => {
+    safeAddEventListener('upgrade-link', 'click', (e) => {
         e.preventDefault();
-        handleSendFeedback();
+        showUpgrade();
     });
+    safeAddEventListener('upgrade-back-btn', 'click', () => showScreen('main'));
+    safeAddEventListener('upgrade-maybe-later-btn', 'click', () => showScreen('main'));
+    
+    const feedbackCalendlyLink = document.getElementById('feedback-calendly-link');
+    if (feedbackCalendlyLink) {
+        feedbackCalendlyLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            chrome.tabs.create({ url: 'https://google.com' });
+        });
+    }
+    
+    safeAddEventListener('feedback-link', 'click', (e) => {
+        e.preventDefault();
+        showScreen('feedback');
+    });
+    
+    safeAddEventListener('settings-link', 'click', (e) => {
+        e.preventDefault();
+        showSettings();
+    });
+    
+    safeAddEventListener('login-forgot-link', 'click', () => {
+        showScreen('forgot-password');
+    });
+    
+    safeAddEventListener('forgot-password-back-btn', 'click', () => {
+        showScreen('login');
+    });
+    
+    safeAddEventListener('forgot-password-submit', 'click', handleForgotPassword);
+    safeAddEventListener('reset-password-submit', 'click', handleResetPassword);
+    
+    safeAddEventListener('onboarding-1-next', 'click', () => showScreen('onboarding-2'));
+    safeAddEventListener('onboarding-1-skip', 'click', handleSkipOnboarding);
+    safeAddEventListener('onboarding-2-back', 'click', () => showScreen('onboarding-1'));
+    safeAddEventListener('onboarding-2-next', 'click', () => showScreen('onboarding-3'));
+    safeAddEventListener('onboarding-2-skip', 'click', handleSkipOnboarding);
+    safeAddEventListener('onboarding-3-back', 'click', () => showScreen('onboarding-2'));
+    safeAddEventListener('onboarding-3-skip', 'click', handleSkipOnboarding);
+    safeAddEventListener('onboarding-3-complete', 'click', handleCompleteOnboarding);
+    
+    safeAddEventListener('resend-verification-btn', 'click', handleResendVerification);
+    safeAddEventListener('verification-back-btn', 'click', () => showScreen('login'));
+    
+    safeAddEventListener('settings-back-btn', 'click', () => showScreen('main'));
+    safeAddEventListener('settings-logout-btn', 'click', handleLogout);
+    safeAddEventListener('settings-forgot-password-btn', 'click', () => showScreen('forgot-password'));
+    safeAddEventListener('delete-account-btn', 'click', handleDeleteAccount);
+    safeAddEventListener('cancel-deletion-btn', 'click', handleCancelDeletion);
+    
+    safeAddEventListener('feedback-back-btn', 'click', () => showScreen('main'));
+    safeAddEventListener('feedback-cancel-btn', 'click', () => showScreen('main'));
+    safeAddEventListener('feedback-submit-btn', 'click', handleSubmitFeedback);
+    
+    safeAddEventListener('upgrade-submit-btn', 'click', handleUpgradeInterest);
 }
 
 function showScreen(screenName) {
     document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
-    document.getElementById(screenName + '-screen').classList.add('active');
+    const targetScreen = document.getElementById(screenName + '-screen');
+    if (targetScreen) {
+        targetScreen.classList.add('active');
+    } else {
+        console.warn(`Screen not found: ${screenName}-screen`);
+    }
 }
 
 async function handleSignup() {
@@ -97,9 +195,29 @@ async function handleSignup() {
         });
         
         if (response.ok) {
-            showToast('Account created! Please login.');
-            showScreen('login');
-            document.getElementById('login-email').value = email;
+            const data = await response.json();
+            showToast('Account created! Logging you in...');
+            
+            try {
+                const loginResponse = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                if (loginResponse.ok) {
+                    const loginData = await loginResponse.json();
+                    currentUser = { email, access_token: loginData.access_token };
+                    await chrome.storage.local.set({ user: currentUser });
+                    showScreen('onboarding-1');
+                } else {
+                    showScreen('login');
+                    document.getElementById('login-email').value = email;
+                }
+            } catch (error) {
+                showScreen('login');
+                document.getElementById('login-email').value = email;
+            }
         } else {
             const errorMsg = await parseApiError(response, 'Registration failed');
             showToast(errorMsg, 'error');
@@ -134,8 +252,14 @@ async function handleLogin() {
             const data = await response.json();
             currentUser = { email, access_token: data.access_token };
             await chrome.storage.local.set({ user: currentUser });
-            showScreen('main');
-            await loadContexts();
+            
+            const onboardingStatus = await checkOnboardingStatus();
+            if (!onboardingStatus || !onboardingStatus.completed) {
+                showScreen('onboarding-1');
+            } else {
+                showScreen('main');
+                await loadContexts();
+            }
             showToast('Login successful!');
         } else {
             const errorMsg = await parseApiError(response, 'Login failed');
@@ -181,7 +305,7 @@ function updateContextBoxes() {
         
         if (context) {
             const lastUsed = context.last_used_at ? 
-                new Date(context.last_used_at).toLocaleString() : 'Never used';
+                formatDateTime(context.last_used_at) : 'Never used';
             boxElement.querySelector('.context-box-meta').textContent = 
                 `${context.versions_count} versions • Last used ${lastUsed}`;
         } else {
@@ -256,7 +380,7 @@ function displayVersions(versions) {
         const dateDiv = createElement('div');
         dateDiv.style.fontSize = '11px';
         dateDiv.style.color = '#666';
-        dateDiv.textContent = new Date(version.created_at).toLocaleString();
+        dateDiv.textContent = formatDateTime(version.created_at);
         leftDiv.appendChild(dateDiv);
         
         const buttonDiv = createElement('div');
@@ -290,10 +414,16 @@ function displayVersions(versions) {
         header.appendChild(buttonDiv);
         
         const usageStats = createElement('div', 'usage-stats');
-        const lastUsed = version.last_used_at 
-            ? new Date(version.last_used_at).toLocaleString() 
-            : 'Never';
-        usageStats.textContent = `📊 Used ${version.uses_count} times • Last: ${lastUsed}`;
+        let lastUsedText = 'Never';
+        if (version.last_used_at) {
+            const lastUsedDate = formatDateTime(version.last_used_at);
+            if (version.last_llm_used && version.last_llm_used.trim()) {
+                lastUsedText = `Last used on ${version.last_llm_used} at ${lastUsedDate}`;
+            } else {
+                lastUsedText = `Last used at ${lastUsedDate}`;
+            }
+        }
+        usageStats.textContent = `📊 Used ${version.uses_count} times • ${lastUsedText}`;
         
         versionElement.appendChild(header);
         versionElement.appendChild(usageStats);
@@ -313,6 +443,19 @@ async function copyVersion(boxName, versionNumber) {
             await navigator.clipboard.writeText(decryptedText);
             showToast('Copied to clipboard!');
             
+            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+            const currentSite = tabs[0] ? new URL(tabs[0].url).hostname : 'unknown';
+            const llmName = getLLMName(currentSite);
+            
+            await fetch(`${API_BASE}/contexts/${boxName}/versions/${versionNumber}/mark_used`, {
+                method: 'POST',
+                headers: { 
+                    'Authorization': `Bearer ${currentUser.access_token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ site: currentSite, llm_name: llmName })
+            });
+            
             await fetch(`${API_BASE}/analytics`, {
                 method: 'POST',
                 headers: { 
@@ -321,7 +464,7 @@ async function copyVersion(boxName, versionNumber) {
                 },
                 body: JSON.stringify({ 
                     event_type: 'copy',
-                    metadata: { box_name: boxName, version_number: versionNumber }
+                    metadata: { box_name: boxName, version_number: versionNumber, site: currentSite }
                 })
             });
         }
@@ -343,6 +486,7 @@ async function insertVersion(boxName, versionNumber) {
             // Get current tab URL
             const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
             const currentSite = tabs[0] ? new URL(tabs[0].url).hostname : 'unknown';
+            const llmName = getLLMName(currentSite);
             
             // Send message to background script to insert text
             await chrome.runtime.sendMessage({
@@ -357,7 +501,7 @@ async function insertVersion(boxName, versionNumber) {
                     'Authorization': `Bearer ${currentUser.access_token}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ site: currentSite })
+                body: JSON.stringify({ site: currentSite, llm_name: llmName })
             });
             
             await fetch(`${API_BASE}/analytics`, {
@@ -467,10 +611,345 @@ async function handleSave() {
     }
 }
 
-function handleSendFeedback() {
-    const subject = encodeURIComponent('RememberMyContext - Feedback');
-    const body = encodeURIComponent('Hi,\n\nI wanted to share the following feedback:\n\n');
-    window.location.href = `mailto:support@remembermycontext.com?subject=${subject}&body=${body}`;
+async function checkOnboardingStatus() {
+    if (!currentUser || !currentUser.access_token) return null;
+    
+    try {
+        const response = await fetch(`${API_BASE}/onboarding/status`, {
+            headers: { 'Authorization': `Bearer ${currentUser.access_token}` }
+        });
+        
+        if (response.ok) {
+            return await response.json();
+        }
+    } catch (error) {
+    }
+    return null;
+}
+
+async function handleCompleteOnboarding() {
+    if (!currentUser || !currentUser.access_token) return;
+    
+    try {
+        const response = await fetch(`${API_BASE}/onboarding/complete`, {
+            method: 'POST',
+            headers: { 
+                'Authorization': `Bearer ${currentUser.access_token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            showScreen('main');
+            await loadContexts();
+            showToast('Welcome! Let\'s get started.');
+        }
+    } catch (error) {
+        showToast('Failed to complete onboarding', 'error');
+    }
+}
+
+async function handleSkipOnboarding() {
+    if (!currentUser || !currentUser.access_token) {
+        showScreen('main');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE}/onboarding/complete`, {
+            method: 'POST',
+            headers: { 
+                'Authorization': `Bearer ${currentUser.access_token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            showScreen('main');
+            await loadContexts();
+        } else {
+            showScreen('main');
+            await loadContexts();
+        }
+    } catch (error) {
+        showScreen('main');
+        await loadContexts();
+    }
+}
+
+async function handleForgotPassword() {
+    const email = document.getElementById('forgot-password-email').value.trim();
+    
+    if (!validateEmail(email)) {
+        showToast('Please enter a valid email address', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE}/auth/forgot-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+        });
+        
+        if (response.ok) {
+            showToast('Password reset link sent! Check your email.', 'success');
+            showScreen('login');
+        } else {
+            const errorMsg = await parseApiError(response, 'Failed to send reset link');
+            showToast(errorMsg, 'error');
+        }
+    } catch (error) {
+        showToast(`Network error: ${error.message}`, 'error');
+    }
+}
+
+async function handleResetPassword() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    
+    if (!token) {
+        showToast('Invalid reset token', 'error');
+        return;
+    }
+    
+    const newPassword = document.getElementById('reset-password-new').value;
+    const confirm = document.getElementById('reset-password-confirm').value;
+    
+    if (!validatePassword(newPassword)) {
+        showToast('Password must be at least 8 characters long', 'error');
+        return;
+    }
+    
+    if (newPassword !== confirm) {
+        showToast('Passwords do not match', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE}/auth/reset-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token, new_password: newPassword })
+        });
+        
+        if (response.ok) {
+            showToast('Password reset successful! Please login.', 'success');
+            showScreen('login');
+        } else {
+            const errorMsg = await parseApiError(response, 'Failed to reset password');
+            showToast(errorMsg, 'error');
+        }
+    } catch (error) {
+        showToast(`Network error: ${error.message}`, 'error');
+    }
+}
+
+async function handleResendVerification() {
+    const email = currentUser?.email || document.getElementById('login-email').value.trim();
+    
+    if (!email) {
+        showToast('Please enter your email', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE}/auth/resend-verification`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+        });
+        
+        if (response.ok) {
+            showToast('Verification email sent! Check your inbox.', 'success');
+        } else {
+            const errorMsg = await parseApiError(response, 'Failed to send verification email');
+            showToast(errorMsg, 'error');
+        }
+    } catch (error) {
+        showToast(`Network error: ${error.message}`, 'error');
+    }
+}
+
+function showUpgrade() {
+    if (!currentUser) {
+        showScreen('welcome');
+        return;
+    }
+    
+    const userEmail = currentUser.email || 'user@example.com';
+    document.getElementById('upgrade-display-email').textContent = userEmail;
+    document.getElementById('upgrade-email').value = userEmail;
+    showScreen('upgrade');
+}
+
+async function showSettings() {
+    if (!currentUser) {
+        showScreen('welcome');
+        return;
+    }
+    
+    document.getElementById('settings-email').textContent = currentUser.email || 'user@example.com';
+    document.getElementById('upgrade-email').value = currentUser.email || 'user@example.com';
+    
+    try {
+        const response = await fetch(`${API_BASE}/auth/check-deletion`, {
+            headers: { 'Authorization': `Bearer ${currentUser.access_token}` }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.deletion_requested) {
+                document.getElementById('deletion-pending-info').style.display = 'block';
+                document.getElementById('delete-account-btn').style.display = 'none';
+            } else {
+                document.getElementById('deletion-pending-info').style.display = 'none';
+                document.getElementById('delete-account-btn').style.display = 'block';
+            }
+        }
+    } catch (error) {
+    }
+    
+    showScreen('settings');
+}
+
+async function handleDeleteAccount() {
+    if (!confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
+        return;
+    }
+    
+    if (!currentUser || !currentUser.access_token) return;
+    
+    try {
+        const response = await fetch(`${API_BASE}/auth/request-deletion`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${currentUser.access_token}` }
+        });
+        
+        if (response.ok) {
+            showToast('Account deletion requested. You have 7 days to cancel.', 'success');
+            document.getElementById('deletion-pending-info').style.display = 'block';
+            document.getElementById('delete-account-btn').style.display = 'none';
+        } else {
+            const errorMsg = await parseApiError(response, 'Failed to request deletion');
+            showToast(errorMsg, 'error');
+        }
+    } catch (error) {
+        showToast(`Network error: ${error.message}`, 'error');
+    }
+}
+
+async function handleCancelDeletion() {
+    if (!currentUser || !currentUser.access_token) return;
+    
+    try {
+        const response = await fetch(`${API_BASE}/auth/cancel-deletion`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${currentUser.access_token}` }
+        });
+        
+        if (response.ok) {
+            showToast('Account deletion cancelled.', 'success');
+            document.getElementById('deletion-pending-info').style.display = 'none';
+            document.getElementById('delete-account-btn').style.display = 'block';
+        } else {
+            const errorMsg = await parseApiError(response, 'Failed to cancel deletion');
+            showToast(errorMsg, 'error');
+        }
+    } catch (error) {
+        showToast(`Network error: ${error.message}`, 'error');
+    }
+}
+
+async function handleSubmitFeedback() {
+    const type = document.getElementById('feedback-type').value;
+    const message = document.getElementById('feedback-message').value.trim();
+    
+    if (!message) {
+        showToast('Please enter your feedback message', 'error');
+        return;
+    }
+    
+    if (!currentUser || !currentUser.access_token) {
+        showToast('Please login first', 'error');
+        showScreen('welcome');
+        return;
+    }
+    
+    const submitBtn = document.getElementById('feedback-submit-btn');
+    const originalText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Submitting...';
+    
+    try {
+        const response = await fetch(`${API_BASE}/feedback`, {
+            method: 'POST',
+            headers: { 
+                'Authorization': `Bearer ${currentUser.access_token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ type: type, message: message })
+        });
+        
+        if (response.ok) {
+            showToast('Thank you for your feedback!', 'success');
+            document.getElementById('feedback-message').value = '';
+            document.getElementById('feedback-type').value = 'bug';
+            setTimeout(() => {
+                showScreen('main');
+            }, 1500);
+        } else {
+            const errorMsg = await parseApiError(response, 'Failed to submit feedback');
+            showToast(errorMsg, 'error');
+        }
+    } catch (error) {
+        showToast(`Network error: ${error.message}`, 'error');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+    }
+}
+
+async function handleUpgradeInterest() {
+    if (!currentUser || !currentUser.access_token || !currentUser.email) {
+        showToast('Please login first', 'error');
+        showScreen('welcome');
+        return;
+    }
+    
+    const notes = document.getElementById('upgrade-notes').value.trim();
+    
+    const submitBtn = document.getElementById('upgrade-submit-btn');
+    const originalText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Submitting...';
+    
+    try {
+        const response = await fetch(`${API_BASE}/upgrade/express-interest`, {
+            method: 'POST',
+            headers: { 
+                'Authorization': `Bearer ${currentUser.access_token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ notes: notes || null })
+        });
+        
+        if (response.ok) {
+            showToast('Thank you for your interest! We\'ll keep you updated.', 'success');
+            document.getElementById('upgrade-notes').value = '';
+            setTimeout(() => {
+                showScreen('main');
+            }, 1500);
+        } else {
+            const errorMsg = await parseApiError(response, 'Failed to submit interest');
+            showToast(errorMsg, 'error');
+        }
+    } catch (error) {
+        showToast(`Network error: ${error.message}`, 'error');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+    }
 }
 
 function showToast(message, type = 'success') {

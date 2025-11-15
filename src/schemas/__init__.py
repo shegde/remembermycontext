@@ -1,4 +1,12 @@
-from .auth import UserRegister, UserLogin, TokenResponse
+from .auth import (
+    UserRegister,
+    UserLogin,
+    TokenResponse,
+    EmailVerificationRequest,
+    VerifyEmailRequest,
+    PasswordResetRequest,
+    PasswordResetConfirm
+)
 from .context import (
     ContextCreate,
     ContextVersionResponse,
@@ -8,11 +16,17 @@ from .context import (
 )
 from .analytics import AnalyticsEventCreate, AnalyticsEventResponse
 from .feedback import FeedbackCreate
+from .upgrade import UpgradeInterestCreate, UpgradeInterestResponse
+from .onboarding import OnboardingStatusResponse, OnboardingCompleteResponse
 
 __all__ = [
     "UserRegister",
     "UserLogin",
     "TokenResponse",
+    "EmailVerificationRequest",
+    "VerifyEmailRequest",
+    "PasswordResetRequest",
+    "PasswordResetConfirm",
     "ContextCreate",
     "ContextVersionResponse",
     "ContextBoxSummary",
@@ -21,5 +35,9 @@ __all__ = [
     "AnalyticsEventCreate",
     "AnalyticsEventResponse",
     "FeedbackCreate",
+    "UpgradeInterestCreate",
+    "UpgradeInterestResponse",
+    "OnboardingStatusResponse",
+    "OnboardingCompleteResponse",
 ]
 

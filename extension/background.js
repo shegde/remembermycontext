@@ -36,7 +36,23 @@ function insertTextIntoActiveElement(text) {
       if (selection.rangeCount > 0) {
         const range = selection.getRangeAt(0);
         range.deleteContents();
-        range.insertNode(document.createTextNode(text));
+        
+        const fragment = document.createDocumentFragment();
+        const lines = text.split('\n');
+        
+        lines.forEach((line, index) => {
+          if (index > 0) {
+            fragment.appendChild(document.createElement('br'));
+          }
+          if (line === '') {
+            fragment.appendChild(document.createTextNode('\u00A0'));
+          } else {
+            const textNode = document.createTextNode(line);
+            fragment.appendChild(textNode);
+          }
+        });
+        
+        range.insertNode(fragment);
         range.collapse(false);
         selection.removeAllRanges();
         selection.addRange(range);

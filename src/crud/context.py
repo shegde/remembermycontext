@@ -63,15 +63,24 @@ def get_context_version(
     return session.exec(statement).first()
 
 
-def mark_version_used(session: Session, user_id: UUID, box_name: str, version_number: int, site: str):
+def mark_version_used(
+    session: Session,
+    user_id: UUID,
+    box_name: str,
+    version_number: int,
+    site: str,
+    llm_name: Optional[str] = None
+):
     try:
         version = get_context_version(session, user_id, box_name, version_number)
         if version:
             version.uses_count += 1
             version.last_used_at = datetime.now(timezone.utc)
+            if llm_name:
+                version.last_llm_used = llm_name
             session.add(version)
             session.commit()
-            logger.info(f"Context version marked as used: {box_name} v{version_number} on {site}")
+            logger.info(f"Context version marked as used: {box_name} v{version_number} on {site} (LLM: {llm_name or 'unknown'})")
     except Exception as e:
         session.rollback()
         logger.error(f"Failed to mark version as used: {str(e)}")

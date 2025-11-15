@@ -7,6 +7,7 @@ from .auth import (
 )
 from .crypto import crypto_service
 from .analytics import create_analytics_event, get_analytics_events
+from .email import email_service
 
 __all__ = [
     "verify_password",
@@ -17,5 +18,6 @@ __all__ = [
     "crypto_service",
     "create_analytics_event",
     "get_analytics_events",
+    "email_service",
 ]
 

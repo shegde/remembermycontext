@@ -18,6 +18,19 @@ class Settings:
     MAX_CONTEXT_LENGTH: int = int(os.getenv("MAX_CONTEXT_LENGTH", "50000"))
     ALLOWED_ORIGINS: str = os.getenv("ALLOWED_ORIGINS", "")
     
+    RESEND_API_KEY: str = os.getenv("RESEND_API_KEY", "")
+    FROM_EMAIL: str = os.getenv("FROM_EMAIL", "noreply@remembermycontext.com")
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:8000")
+    
+    EMAIL_VERIFICATION_REQUIRED: bool = os.getenv("EMAIL_VERIFICATION_REQUIRED", "false").lower() == "true"
+    EMAIL_VERIFICATION_EXPIRY_HOURS: int = int(os.getenv("EMAIL_VERIFICATION_EXPIRY_HOURS", "24"))
+    PASSWORD_RESET_EXPIRY_HOURS: int = int(os.getenv("PASSWORD_RESET_EXPIRY_HOURS", "1"))
+    ACCOUNT_DELETION_GRACE_DAYS: int = int(os.getenv("ACCOUNT_DELETION_GRACE_DAYS", "7"))
+    
+    ENABLE_ONBOARDING: bool = os.getenv("ENABLE_ONBOARDING", "true").lower() == "true"
+    ENABLE_PASSWORD_RESET: bool = os.getenv("ENABLE_PASSWORD_RESET", "true").lower() == "true"
+    CALENDLY_LINK: str = os.getenv("CALENDLY_LINK", "")
+    
     def validate(self) -> None:
         errors = []
         

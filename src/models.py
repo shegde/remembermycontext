@@ -8,6 +8,11 @@ class User(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     email: str = Field(unique=True, index=True)
     password_hash: str
+    email_verified: bool = Field(default=False)
+    verification_token: Optional[str] = Field(default=None, index=True)
+    verification_token_expires_at: Optional[datetime] = None
+    onboarding_completed: bool = Field(default=False)
+    account_deletion_requested_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     
     context_versions: List["ContextVersion"] = Relationship(back_populates="user")
@@ -25,6 +30,7 @@ class ContextVersion(SQLModel, table=True):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     uses_count: int = 0
     last_used_at: Optional[datetime] = None
+    last_llm_used: Optional[str] = None
     
     user: User = Relationship(back_populates="context_versions")
 
@@ -48,4 +54,21 @@ class AnalyticsEvent(SQLModel, table=True):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     
     user: Optional[User] = Relationship(back_populates="analytics_events")
+
+
+class PasswordResetToken(SQLModel, table=True):
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    token: str = Field(unique=True, index=True)
+    user_id: UUID = Field(foreign_key="user.id")
+    expires_at: datetime
+    used_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class UpgradeInterest(SQLModel, table=True):
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    user_id: UUID = Field(foreign_key="user.id")
+    email: str
+    notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 

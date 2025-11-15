@@ -8,7 +8,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from .database import create_db_and_tables
-from .routers import auth_router, context_router, feedback_router, analytics_router
+from .routers import auth_router, context_router, feedback_router, analytics_router, upgrade_router, onboarding_router
 from .config import settings
 from .logging_config import logger
 from .middleware import limiter
@@ -79,6 +79,8 @@ app.include_router(auth_router, prefix=settings.API_PREFIX)
 app.include_router(context_router, prefix=settings.API_PREFIX)
 app.include_router(feedback_router, prefix=settings.API_PREFIX)
 app.include_router(analytics_router, prefix=settings.API_PREFIX)
+app.include_router(upgrade_router, prefix=settings.API_PREFIX)
+app.include_router(onboarding_router, prefix=settings.API_PREFIX)
 
 try:
     app.mount("/static", StaticFiles(directory=str(DASHBOARD_DIR)), name="static")

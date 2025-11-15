@@ -54,6 +54,7 @@
                 <input type="password" id="login-password" placeholder="••••••••">
             </div>
             <button id="login-submit" class="btn btn-primary" style="width: 100%; margin-bottom: 10px;">Login</button>
+            <button id="login-forgot-link" class="btn btn-link" style="width: 100%; font-size: 12px; margin-bottom: 5px;">Forgot Password?</button>
             <button id="login-signup-link" class="btn btn-link" style="width: 100%;">Create New Account</button>
         </div>
 
@@ -93,6 +94,7 @@
             <div class="footer-links">
                 <a href="#" id="feedback-link">Send Feedback</a> • 
                 <a href="#" id="upgrade-link">Upgrade</a> • 
+                <a href="#" id="settings-link">Settings</a> • 
                 <a href="#" id="logout-link" style="color: #dc3545;">Logout</a>
             </div>
         </div>
@@ -141,44 +143,225 @@ Example:
         </div>
 
         <div id="upgrade-screen" class="screen">
+            <div class="popup-header" style="background: #4a5568; color: white; display: flex; align-items: center;">
+                <button id="upgrade-back-btn" class="back-btn" style="background: rgba(255,255,255,0.2); border: none; color: white; width: 30px; height: 30px; border-radius: 4px; margin-right: 10px; cursor: pointer;">←</button>
+                <h2 style="margin: 0; font-size: 16px; flex: 1;">Upgrade to Pro</h2>
+            </div>
+            <div class="popup-body" style="background: white;">
+                <div style="margin-bottom: 25px;">
+                    <div style="font-size: 14px; color: #666; margin-bottom: 8px;">Logged in as:</div>
+                    <div style="font-weight: 600; color: #333; font-size: 16px;" id="upgrade-display-email">user@example.com</div>
+                </div>
+
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <div style="font-size: 48px; margin-bottom: 10px;">🚀</div>
+                    <div style="font-size: 24px; font-weight: bold; margin-bottom: 10px;">Coming Soon!</div>
+                    <p style="color: #666; font-size: 14px;">We're working on premium features. Let us know you're interested!</p>
+                </div>
+
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: left;">
+                    <strong style="display: block; margin-bottom: 10px;">Planned Pro Features:</strong>
+                    <ul style="margin: 0; padding-left: 20px; color: #666;">
+                        <li>Unlimited context boxes</li>
+                        <li>Permanent version history</li>
+                        <li>Team sharing capabilities</li>
+                        <li>Advanced analytics</li>
+                        <li>Priority support</li>
+                    </ul>
+                </div>
+
+                <div class="form-group" style="display: none;">
+                    <label>Your Email</label>
+                    <input type="email" id="upgrade-email" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 4px; font-size: 14px;">
+                </div>
+
+                <div class="form-group">
+                    <label>What features interest you most? (Optional)</label>
+                    <textarea id="upgrade-notes" placeholder="Let us know what you'd like to see..." style="min-height: 80px; width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 4px; font-size: 14px;"></textarea>
+                </div>
+
+                <button id="upgrade-submit-btn" class="btn btn-success" style="width: 100%; margin-bottom: 10px;">Express Interest</button>
+                <button id="upgrade-maybe-later-btn" class="btn btn-link" style="width: 100%;">Maybe Later</button>
+            </div>
+        </div>
+
+        <div id="onboarding-1-screen" class="screen">
+            <div style="text-align: center; padding: 20px 0;">
+                <div style="font-size: 12px; color: #666; margin-bottom: 10px;">Step 1 of 3</div>
+                <h3 style="margin-bottom: 20px; font-size: 20px; font-weight: 600;">Open a Context Box</h3>
+                <div style="width: 200px; height: 200px; margin: 0 auto 20px; border: 2px dashed #ddd; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: #f9f9f9;">
+                    <div style="font-size: 48px;">📁</div>
+                </div>
+                <p style="color: #666; margin-bottom: 30px; line-height: 1.6; padding: 0 20px;">
+                    Context boxes organize your information by category. Start by opening one of your default boxes.
+                </p>
+                <div style="display: flex; gap: 10px; padding: 0 20px;">
+                    <button id="onboarding-1-skip" class="btn btn-secondary" style="flex: 1;">Skip</button>
+                    <button id="onboarding-1-next" class="btn btn-primary" style="flex: 1;">Next</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="onboarding-2-screen" class="screen">
+            <div style="text-align: center; padding: 20px 0;">
+                <div style="font-size: 12px; color: #666; margin-bottom: 10px;">Step 2 of 3</div>
+                <h3 style="margin-bottom: 20px; font-size: 20px; font-weight: 600;">Add Your Context</h3>
+                <div style="width: 200px; height: 200px; margin: 0 auto 20px; border: 2px dashed #ddd; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: #f9f9f9;">
+                    <div style="font-size: 48px;">📝</div>
+                </div>
+                <p style="color: #666; margin-bottom: 30px; line-height: 1.6; padding: 0 20px;">
+                    Paste your context information and save it. This creates version v0 that you can use across any LLM.
+                </p>
+                <div style="display: flex; gap: 10px; padding: 0 20px;">
+                    <button id="onboarding-2-back" class="btn btn-secondary" style="flex: 1;">Back</button>
+                    <button id="onboarding-2-skip" class="btn btn-secondary" style="flex: 1;">Skip</button>
+                    <button id="onboarding-2-next" class="btn btn-primary" style="flex: 1;">Next</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="onboarding-3-screen" class="screen">
+            <div style="text-align: center; padding: 20px 0;">
+                <div style="font-size: 12px; color: #666; margin-bottom: 10px;">Step 3 of 3</div>
+                <h3 style="margin-bottom: 20px; font-size: 20px; font-weight: 600;">Use in Any LLM</h3>
+                <div style="width: 200px; height: 200px; margin: 0 auto 20px; border: 2px dashed #ddd; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: #f9f9f9;">
+                    <div style="font-size: 48px;">📋</div>
+                </div>
+                <p style="color: #666; margin-bottom: 30px; line-height: 1.6; padding: 0 20px;">
+                    Open ChatGPT, Claude, or any LLM. Click the extension, select your context box, and it copies automatically to your clipboard. Paste and go!
+                </p>
+                <div style="display: flex; gap: 10px; padding: 0 20px;">
+                    <button id="onboarding-3-back" class="btn btn-secondary" style="flex: 1;">Back</button>
+                    <button id="onboarding-3-skip" class="btn btn-secondary" style="flex: 1;">Skip</button>
+                    <button id="onboarding-3-complete" class="btn btn-success" style="flex: 1;">Get Started</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="email-verification-screen" class="screen">
+            <div style="text-align: center; padding: 20px 0;">
+                <div style="font-size: 48px; margin-bottom: 20px;">📧</div>
+                <h3 style="margin-bottom: 15px;">Verify Your Email</h3>
+                <p style="color: #666; margin-bottom: 20px; line-height: 1.6;">
+                    We've sent a verification link to your email.<br>
+                    Please check your inbox and click the link to verify.
+                </p>
+                <div class="info-box" style="margin-bottom: 20px;">
+                    <strong>Didn't receive the email?</strong><br>
+                    Check your spam folder or request a new verification link.
+                </div>
+                <button id="resend-verification-btn" class="btn btn-secondary" style="width: 100%; margin-bottom: 10px;">Resend Verification Email</button>
+                <button id="verification-back-btn" class="btn btn-link" style="width: 100%;">Back to Login</button>
+            </div>
+        </div>
+
+        <div id="forgot-password-screen" class="screen">
             <div class="popup-header">
-                <button id="upgrade-back-btn" class="back-btn">←</button>
-                <h2>Upgrade to Pro</h2>
+                <button id="forgot-password-back-btn" class="back-btn">←</button>
+                <h2>Reset Password</h2>
             </div>
             <div class="popup-body">
-                <div style="text-align: center; padding: 20px 0;">
-                    <h3 style="color: #007bff; margin-bottom: 20px;">Pro Plan Features</h3>
-                    
-                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px; text-align: left;">
-                        <div style="margin-bottom: 10px;">
-                            <strong>✓</strong> Unlimited Context Boxes
-                        </div>
-                        <div style="margin-bottom: 10px;">
-                            <strong>✓</strong> Advanced Analytics
-                        </div>
-                        <div style="margin-bottom: 10px;">
-                            <strong>✓</strong> Team Collaboration
-                        </div>
-                        <div style="margin-bottom: 10px;">
-                            <strong>✓</strong> Priority Support
-                        </div>
-                        <div style="margin-bottom: 10px;">
-                            <strong>✓</strong> Export/Import Contexts
-                        </div>
-                        <div>
-                            <strong>✓</strong> Custom Integrations
-                        </div>
-                    </div>
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <div style="font-size: 48px; margin-bottom: 15px;">🔑</div>
+                    <p style="color: #666; line-height: 1.6;">
+                        Enter your email address and we'll send you<br>
+                        a link to reset your password.
+                    </p>
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="forgot-password-email" placeholder="your@email.com">
+                </div>
+                <button id="forgot-password-submit" class="btn btn-primary" style="width: 100%;">Send Reset Link</button>
+                <div class="info-box" style="margin-top: 20px; font-size: 12px;">
+                    <strong>Note:</strong> If an account exists with that email, a password reset link will be sent.
+                </div>
+            </div>
+        </div>
 
-                    <div style="background: #007bff; color: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                        <div style="font-size: 32px; font-weight: bold;">Coming Soon</div>
-                        <div style="font-size: 14px; opacity: 0.9;">Pricing details will be announced soon</div>
-                    </div>
+        <div id="reset-password-screen" class="screen">
+            <div class="popup-header">
+                <h2>Set New Password</h2>
+            </div>
+            <div class="popup-body">
+                <div class="form-group">
+                    <label>New Password</label>
+                    <input type="password" id="reset-password-new" placeholder="••••••••">
+                </div>
+                <div class="form-group">
+                    <label>Confirm Password</label>
+                    <input type="password" id="reset-password-confirm" placeholder="••••••••">
+                </div>
+                <div class="info-box" style="font-size: 12px; margin-bottom: 20px;">
+                    <strong>Password Requirements:</strong><br>
+                    • At least 8 characters long
+                </div>
+                <button id="reset-password-submit" class="btn btn-primary" style="width: 100%;">Reset Password</button>
+            </div>
+        </div>
 
-                    <div style="font-size: 12px; color: #666; margin-top: 15px;">
-                        Pro plan features will be available soon
+        <div id="settings-screen" class="screen">
+            <div class="popup-header" style="background: #4a5568; color: white; display: flex; align-items: center;">
+                <button id="settings-back-btn" class="back-btn" style="background: rgba(255,255,255,0.2); border: none; color: white; width: 30px; height: 30px; border-radius: 4px; margin-right: 10px; cursor: pointer;">←</button>
+                <h2 style="margin: 0; font-size: 16px; flex: 1;">Account Settings</h2>
+            </div>
+            <div class="popup-body" style="background: white;">
+                <div style="margin-bottom: 25px;">
+                    <div style="font-size: 14px; color: #666; margin-bottom: 8px;">Logged in as:</div>
+                    <div style="font-weight: 600; color: #333; font-size: 16px;" id="settings-email">user@example.com</div>
+                </div>
+
+                <div style="border-top: 1px solid #eee; padding-top: 20px; margin-bottom: 25px;">
+                    <h4 style="margin-bottom: 15px; font-size: 16px; color: #333;">Account Management</h4>
+                    <div style="margin-bottom: 15px;">
+                        <button id="settings-logout-btn" class="btn btn-secondary" style="width: 100%; background: #6c757d; color: white; padding: 12px; margin-bottom: 10px;">Logout</button>
+                        <button id="settings-forgot-password-btn" class="btn btn-link" style="width: 100%; padding: 12px; color: #007bff; text-decoration: underline; background: none; border: none;">Forgot Password?</button>
                     </div>
                 </div>
+
+                <div style="border-top: 1px solid #eee; padding-top: 20px;">
+                    <h4 style="margin-bottom: 15px; font-size: 16px; color: #dc3545;">Danger Zone</h4>
+                    <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin-bottom: 15px; border-radius: 4px;">
+                        <strong style="display: block; margin-bottom: 5px; color: #856404;">⚠️ Delete Account</strong>
+                        <span style="font-size: 13px; color: #856404;">This action cannot be undone. Your account and all data will be permanently deleted.</span>
+                    </div>
+                    <button id="delete-account-btn" class="btn" style="width: 100%; background: #dc3545; color: white; padding: 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">Delete Account</button>
+                </div>
+
+                <div id="deletion-pending-info" style="display: none; margin-top: 20px; padding: 15px; background: #e7f3ff; border-radius: 4px; border-left: 4px solid #007bff;">
+                    <strong>Account Deletion Pending</strong><br>
+                    <span style="font-size: 12px;">Your account will be deleted in 7 days. You can cancel this action.</span>
+                    <button id="cancel-deletion-btn" class="btn btn-primary" style="width: 100%; margin-top: 10px;">Cancel Deletion</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="feedback-screen" class="screen">
+            <div class="popup-header" style="background: #4a5568; color: white; display: flex; align-items: center;">
+                <button id="feedback-back-btn" class="back-btn" style="background: rgba(255,255,255,0.2); border: none; color: white; width: 30px; height: 30px; border-radius: 4px; margin-right: 10px; cursor: pointer;">←</button>
+                <h2 style="margin: 0; font-size: 16px; flex: 1;">Send Feedback</h2>
+            </div>
+            <div class="popup-body" style="background: white;">
+                <p style="color: #666; margin-bottom: 20px; text-align: center;">Help us improve memor.ai! Your feedback matters.</p>
+                <div class="form-group">
+                    <label>Feedback Type</label>
+                    <select id="feedback-type" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 4px; font-size: 14px;">
+                        <option value="bug">Bug Report</option>
+                        <option value="feature">Feature Request</option>
+                        <option value="improvement">Improvement</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Your Feedback</label>
+                    <textarea id="feedback-message" placeholder="Tell us what you think..." style="min-height: 120px;"></textarea>
+                </div>
+                <div style="margin-bottom: 20px; padding: 10px; background: #f8f9fa; border-radius: 4px;">
+                    <span style="font-size: 14px; color: #666;">📅 Want to discuss in detail? </span>
+                    <a href="https://google.com" id="feedback-calendly-link" target="_blank" style="color: #007bff; text-decoration: none; font-weight: 600;">Book a 15-min call with us</a>
+                </div>
+                <button id="feedback-submit-btn" class="btn btn-primary" style="width: 100%; margin-bottom: 10px;">Submit Feedback</button>
+                <button id="feedback-cancel-btn" class="btn btn-link" style="width: 100%;">Cancel</button>
             </div>
         </div>
     </div>
@@ -187,6 +370,7 @@ Example:
     
     <script src="config.js"></script>
     <script src="utils.js"></script>
+    <script src="formatters.js"></script>
     <script src="popup.js"></script>
 </body>
 </html>

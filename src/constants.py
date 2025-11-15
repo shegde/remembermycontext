@@ -14,6 +14,7 @@ class FeedbackType(StrEnum):
     BUG = "bug"
     FEATURE = "feature"
     GENERAL = "general"
+    COMPLIMENT = "compliment"
 
 
 class AnalyticsEventType(StrEnum):
@@ -31,4 +32,6 @@ class ErrorCode(StrEnum):
     VALIDATION_ERROR = "VALIDATION_ERROR"
     ENCRYPTION_ERROR = "ENCRYPTION_ERROR"
     DECRYPTION_ERROR = "DECRYPTION_ERROR"
+    INVALID_TOKEN = "INVALID_TOKEN"
+    FEATURE_DISABLED = "FEATURE_DISABLED"
 

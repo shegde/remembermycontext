@@ -59,7 +59,8 @@ def get_versions(
             "version_number": v.version_number,
             "created_at": v.created_at,
             "uses_count": v.uses_count,
-            "last_used_at": v.last_used_at
+            "last_used_at": v.last_used_at,
+            "last_llm_used": v.last_llm_used
         }
         for v in versions
     ]
@@ -112,7 +113,14 @@ def mark_version_used_endpoint(
                 "error_code": ErrorCode.VALIDATION_ERROR
             }
         )
-    mark_version_used(session, current_user.id, box_name.value, version_number, request.site)
+    mark_version_used(
+        session,
+        current_user.id,
+        box_name.value,
+        version_number,
+        request.site,
+        request.llm_name
+    )
     return {"ok": True}
 
 
