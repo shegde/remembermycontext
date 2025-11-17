@@ -182,7 +182,7 @@ async function loadFeaturesData() {
     try {
         const [metrics, adoption, boxesPerUser, versionDist, boxRatio, powerUserStats, adoptionTimeline] = await Promise.all([
             fetchAPI(`/admin/analytics/features/metrics?time_range=${currentTimeRange}`),
-            fetchAPI(`/admin/analytics/features/adoption-breakdown`),
+            fetchAPI(`/admin/analytics/features/adoption-breakdown?time_range=${currentTimeRange}`),
             fetchAPI(`/admin/analytics/features/boxes-per-user`),
             fetchAPI(`/admin/analytics/features/version-distribution`),
             fetchAPI(`/admin/analytics/features/box-ratio`),
@@ -647,23 +647,19 @@ async function updateAcquisitionCharts(timeline, funnel, patterns) {
         
         // Funnel Chart
         if (funnel && funnel.funnel) {
-            const funnelData = funnel.funnel.filter(s => s.count !== -1);
-            if (funnelData.length > 0) {
-                createBarChart('funnel-chart', {
-                    labels: funnelData.map(s => s.stage),
-                    datasets: [{
-                        label: 'Users',
-                        data: funnelData.map(s => s.count || 0),
-                        backgroundColor: [
-                            'rgba(52, 152, 219, 0.8)',
-                            'rgba(46, 204, 113, 0.8)',
-                            'rgba(241, 196, 15, 0.8)',
-                            'rgba(231, 76, 60, 0.8)',
-                            'rgba(155, 89, 182, 0.8)'
-                        ]
-                    }]
-                });
-            }
+            createBarChart('funnel-chart', {
+                labels: funnel.funnel.map(s => s.stage),
+                datasets: [{
+                    label: 'Users',
+                    data: funnel.funnel.map(s => s.count || 0),
+                    backgroundColor: [
+                        'rgba(52, 152, 219, 0.8)',
+                        'rgba(46, 204, 113, 0.8)',
+                        'rgba(241, 196, 15, 0.8)',
+                        'rgba(155, 89, 182, 0.8)'
+                    ]
+                }]
+            });
         }
     
         // Signup Patterns
@@ -756,27 +752,11 @@ async function updateEngagementCharts(copyActivity, boxUsage, onboardingFunnel) 
             }
         }
         
-        // Onboarding Funnel Chart
-        if (onboardingFunnel && onboardingFunnel.stages) {
-            createBarChart('onboarding-funnel-chart', {
-                labels: onboardingFunnel.stages.map(s => s.stage),
-                datasets: [{
-                    label: 'Users',
-                    data: onboardingFunnel.stages.map(s => s.count || 0),
-                    backgroundColor: [
-                        'rgba(52, 152, 219, 0.8)',
-                        'rgba(46, 204, 113, 0.8)',
-                        'rgba(241, 196, 15, 0.8)',
-                        'rgba(155, 89, 182, 0.8)'
-                    ]
-                }]
-            });
-        }
     });
 }
 
 // Update LLM charts
-async function updateLLMCharts(distribution, platforms, usageTrends) {
+async function updateLLMCharts(distribution, platforms, usageTrends, diversity) {
     waitForChartJS(() => {
         // LLM Platform Distribution (pie chart)
         if (distribution) {
@@ -871,6 +851,23 @@ async function updateLLMCharts(distribution, platforms, usageTrends) {
                 }
             });
         }
+        
+        // User LLM Diversity Chart
+        if (diversity && diversity.distribution) {
+            createBarChart('llm-diversity-chart', {
+                labels: diversity.distribution.map(d => `${d.llms} LLM${d.llms === '1' ? '' : 's'}`),
+                datasets: [{
+                    label: 'Users',
+                    data: diversity.distribution.map(d => d.users),
+                    backgroundColor: [
+                        'rgba(52, 152, 219, 0.8)',
+                        'rgba(46, 204, 113, 0.8)',
+                        'rgba(241, 196, 15, 0.8)',
+                        'rgba(155, 89, 182, 0.8)'
+                    ]
+                }]
+            });
+        }
     });
 }
 
@@ -897,24 +894,6 @@ async function updateFeaturesCharts(boxesPerUser, versionDist, adoption, adoptio
                     label: 'Users',
                     data: versionDist.distribution.map(d => d.users),
                     backgroundColor: 'rgba(46, 204, 113, 0.8)'
-                }]
-            });
-        }
-        
-        // Feature Adoption Chart (from adoption breakdown)
-        if (adoption && adoption.features) {
-            createBarChart('feature-adoption-chart', {
-                labels: adoption.features.map(f => f.name),
-                datasets: [{
-                    label: 'Adoption Rate (%)',
-                    data: adoption.features.map(f => f.adoption_rate),
-                    backgroundColor: [
-                        'rgba(52, 152, 219, 0.8)',
-                        'rgba(46, 204, 113, 0.8)',
-                        'rgba(241, 196, 15, 0.8)',
-                        'rgba(231, 76, 60, 0.8)',
-                        'rgba(155, 89, 182, 0.8)'
-                    ]
                 }]
             });
         }
@@ -996,7 +975,6 @@ async function loadOverviewData() {
             const lifecycleContainer = document.getElementById('user-lifecycle-stats');
             if (lifecycleContainer) {
                 const active = lifecycle.active_users || lifecycle.active;
-                const atRisk = lifecycle.at_risk_users || lifecycle.at_risk;
                 const dormant = lifecycle.dormant_users || lifecycle.dormant;
                 lifecycleContainer.innerHTML = `
                     <div class="metric-item">
@@ -1004,12 +982,6 @@ async function loadOverviewData() {
                             <span class="status-indicator healthy"></span> Active Users
                         </span>
                         <span class="metric-item-value">${formatNumber(active.count)} (${active.percentage}%)</span>
-                    </div>
-                    <div class="metric-item">
-                        <span class="metric-item-label">
-                            <span class="status-indicator warning"></span> At-Risk Users
-                        </span>
-                        <span class="metric-item-value">${formatNumber(atRisk.count)} (${atRisk.percentage}%)</span>
                     </div>
                     <div class="metric-item">
                         <span class="metric-item-label">
@@ -1026,20 +998,19 @@ async function loadOverviewData() {
             const perfContainer = document.getElementById('performance-health-stats');
             if (perfContainer) {
                 const retrievalTime = perfHealth.avg_retrieval_time_ms;
+                const uptime = perfHealth.uptime_percent;
+                const totalRetrievals = perfHealth.total_retrievals_7d || 0;
                 perfContainer.innerHTML = `
                     <div class="metric-item">
                         <span class="metric-item-label">Avg Retrieval Time</span>
-                        <span class="metric-item-value" style="color: #2ecc71;">${retrievalTime ? retrievalTime + 'ms' : 'N/A'}</span>
-                    </div>
-                    <div class="metric-item">
-                        <span class="metric-item-label">Error Rate</span>
-                        <span class="metric-item-value" style="color: #2ecc71;">${perfHealth.error_rate_percent}%</span>
+                        <span class="metric-item-value" style="color: #2ecc71;">${retrievalTime !== null && retrievalTime !== undefined ? retrievalTime + 'ms' : 'N/A'}</span>
                     </div>
                     <div class="metric-item">
                         <span class="metric-item-label">Uptime</span>
-                        <span class="metric-item-value" style="color: #2ecc71;">${perfHealth.uptime_percent}%</span>
+                        <span class="metric-item-value" style="color: #2ecc71;">${uptime ? uptime + '%' : 'N/A'}</span>
                     </div>
                 `;
+                console.log('Performance Health:', { retrievalTime, uptime, totalRetrievals });
             }
         }
         
@@ -1135,19 +1106,16 @@ async function loadAcquisitionData() {
             const tableBody = document.getElementById('funnel-table-body');
             if (tableBody) {
                 tableBody.innerHTML = funnel.funnel.map((stage, index) => {
-                    const count = stage.count === -1 ? 'N/A' : formatNumber(stage.count);
-                    const conversion = stage.conversion_rate === -1 ? 'N/A' : `${stage.conversion_rate}%`;
-                    const dropOff = stage.drop_off === -1 ? '-' : stage.drop_off > 0 ? formatNumber(stage.drop_off) : '-';
-                    const trend = stage.trend_percent === -1 ? '-' : stage.trend_percent > 0 ? `+${stage.trend_percent}%` : `${stage.trend_percent}%`;
-                    const trendClass = stage.trend_percent > 0 ? 'up' : stage.trend_percent < 0 ? 'down' : '';
+                    const count = formatNumber(stage.count);
+                    const conversion = `${stage.conversion_rate}%`;
+                    const lostUsers = stage.drop_off > 0 ? formatNumber(stage.drop_off) : '-';
                     
                     return `
                         <tr>
                             <td>${stage.stage}</td>
                             <td class="metric-value">${count}</td>
                             <td>${conversion}</td>
-                            <td>${dropOff}</td>
-                            <td>${trend !== '-' ? `<span class="trend-badge ${trendClass}">${trend}</span>` : '-'}</td>
+                            <td>${lostUsers}</td>
                         </tr>
                     `;
                 }).join('');
@@ -1179,18 +1147,6 @@ async function loadEngagementData() {
         updateKPI('engagement-avg-copies', metrics.avg_copies_per_active_user);
         updateKPI('engagement-new-versions', metrics.new_versions_created);
         
-        // Session duration
-        const sessionDurationEl = document.getElementById('engagement-session-duration');
-        if (sessionDurationEl) {
-            if (metrics.avg_session_duration_seconds === -1 || !metrics.avg_session_duration_seconds) {
-                sessionDurationEl.textContent = 'N/A';
-            } else {
-                const minutes = Math.floor(metrics.avg_session_duration_seconds / 60);
-                const seconds = metrics.avg_session_duration_seconds % 60;
-                sessionDurationEl.textContent = `${minutes}m ${seconds}s`;
-            }
-        }
-        
         // Update KPI changes
         const totalCopiesChange = document.getElementById('engagement-total-copies-change');
         if (totalCopiesChange) {
@@ -1211,11 +1167,6 @@ async function loadEngagementData() {
             const change = metrics.new_versions_change_percent || 0;
             newVersionsChange.textContent = change > 0 ? `↑ ${change}% vs last week` : change < 0 ? `↓ ${Math.abs(change)}% vs last week` : '';
             newVersionsChange.className = `kpi-change ${change > 0 ? 'positive' : change < 0 ? 'negative' : ''}`;
-        }
-        
-        const sessionDurationChange = document.getElementById('engagement-session-duration-change');
-        if (sessionDurationChange) {
-            sessionDurationChange.textContent = ''; // Not tracked yet
         }
         
         // Update box usage breakdown
@@ -1331,12 +1282,13 @@ async function loadEngagementData() {
 
 async function loadLLMData() {
     try {
-        const [metrics, distribution, platforms, usageTrends, platformDetails] = await Promise.all([
+        const [metrics, distribution, platforms, usageTrends, platformDetails, diversity] = await Promise.all([
             fetchAPI(`/admin/analytics/llm/metrics?time_range=${currentTimeRange}`),
             fetchAPI(`/admin/analytics/llm/platform-distribution?time_range=${currentTimeRange}`),
             fetchAPI(`/admin/analytics/llm/copies-by-platform?time_range=${currentTimeRange}`),
             fetchAPI(`/admin/analytics/llm/usage-trends?time_range=${currentTimeRange}`),
-            fetchAPI(`/admin/analytics/llm/platform-details?time_range=${currentTimeRange}`)
+            fetchAPI(`/admin/analytics/llm/platform-details?time_range=${currentTimeRange}`),
+            fetchAPI(`/admin/analytics/llm/user-diversity?time_range=${currentTimeRange}`)
         ]);
 
         // Update KPIs
@@ -1422,9 +1374,9 @@ async function loadLLMData() {
         }
 
         // Update charts
-        await updateLLMCharts(distribution, platforms, usageTrends);
+        await updateLLMCharts(distribution, platforms, usageTrends, diversity);
 
-        console.log('LLM data loaded:', {metrics, distribution, platforms, usageTrends, platformDetails});
+        console.log('LLM data loaded:', {metrics, distribution, platforms, usageTrends, platformDetails, diversity});
     } catch (error) {
         console.error('Error loading LLM data:', error);
     }
@@ -1474,15 +1426,13 @@ function updateDBViewTable(data) {
     const tableBody = document.getElementById('dbview-table-body');
     
     if (titleEl) {
-        const tableNames = {
-            'users': 'Users',
-            'contexts': 'Context Versions',
-            'feedbacks': 'Feedbacks',
-            'upgrades': 'Upgrade Interests',
-            'analytics': 'Analytics Events',
-            'installs': 'Install Events',
-            'onboarding': 'Onboarding Events'
-        };
+            const tableNames = {
+                'users': 'Users',
+                'contexts': 'Context Versions',
+                'feedbacks': 'Feedbacks',
+                'upgrades': 'Upgrade Interests',
+                'analytics': 'Analytics Events'
+            };
         titleEl.textContent = tableNames[currentDBTable] || currentDBTable;
     }
     

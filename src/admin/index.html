@@ -505,12 +505,6 @@
                         </div>
                         <div class="metric-item">
                             <span class="metric-item-label">
-                                <span class="status-indicator warning"></span> At-Risk Users
-                            </span>
-                            <span class="metric-item-value"></span>
-                        </div>
-                        <div class="metric-item">
-                            <span class="metric-item-label">
                                 <span class="status-indicator critical"></span> Dormant Users
                             </span>
                             <span class="metric-item-value"></span>
@@ -523,10 +517,6 @@
                     <div class="metric-list" id="performance-health-stats">
                         <div class="metric-item">
                             <span class="metric-item-label">Avg Retrieval Time</span>
-                            <span class="metric-item-value" style="color: #2ecc71;"></span>
-                        </div>
-                        <div class="metric-item">
-                            <span class="metric-item-label">Error Rate</span>
                             <span class="metric-item-value" style="color: #2ecc71;"></span>
                         </div>
                         <div class="metric-item">
@@ -614,15 +604,14 @@
             </div>
 
             <div class="table-container">
-                <div class="chart-title">Install Funnel Details</div>
+                <div class="chart-title">Signup Funnel Details</div>
                 <table>
                     <thead>
                         <tr>
                             <th>Stage</th>
                             <th>Count</th>
                             <th>Conversion %</th>
-                            <th>Drop-off</th>
-                            <th>Trend</th>
+                            <th>Lost Users</th>
                         </tr>
                     </thead>
                     <tbody id="funnel-table-body">
@@ -680,16 +669,10 @@
                     <div class="kpi-value" id="engagement-new-versions">0</div>
                     <div class="kpi-change" id="engagement-new-versions-change"></div>
                 </div>
-                
-                <div class="kpi-card purple">
-                    <div class="kpi-label">Avg Session Duration</div>
-                    <div class="kpi-value" id="engagement-session-duration">N/A</div>
-                    <div class="kpi-change" id="engagement-session-duration-change"></div>
-                </div>
             </div>
 
             <div class="chart-grid">
-                <div class="chart-container full-width">
+                <div class="chart-container">
                     <div class="chart-title">Context Copy Activity Over Time</div>
                     <div class="chart-placeholder">
                         <canvas id="copy-activity-chart"></canvas>
@@ -705,22 +688,6 @@
                 <div class="chart-container">
                     <div class="chart-title">Version Activity Stats</div>
                     <div class="metric-list" id="version-stats-list">
-                    </div>
-                </div>
-            </div>
-
-            <div class="chart-grid">
-                <div class="chart-container">
-                    <div class="chart-title">Onboarding Completion Funnel</div>
-                    <div class="chart-placeholder">
-                        <canvas id="onboarding-funnel-chart"></canvas>
-                    </div>
-                </div>
-
-                <div class="chart-container">
-                    <div class="chart-title">Time Between Sessions</div>
-                    <div class="chart-placeholder">
-                        <canvas id="session-distribution-chart"></canvas>
                     </div>
                 </div>
             </div>
@@ -745,31 +712,15 @@
 
             <div class="chart-grid" style="margin-top: 30px;">
                 <div class="chart-container">
-                    <div class="chart-title">Feature Adoption Breakdown</div>
-                    <div class="chart-placeholder">
-                        <canvas id="feature-adoption-chart"></canvas>
-                    </div>
-                </div>
-
-                <div class="chart-container">
                     <div class="chart-title">Box Utilization</div>
                     <div class="chart-placeholder">
                         <canvas id="box-utilization-chart"></canvas>
                     </div>
                 </div>
-            </div>
 
-            <div class="chart-grid" style="margin-top: 30px;">
                 <div class="chart-container">
                     <div class="chart-title">Onboarding Completion Funnel</div>
                     <div class="metric-list" id="onboarding-funnel-stats">
-                    </div>
-                </div>
-
-                <div class="chart-container">
-                    <div class="chart-title">Time Between Sessions</div>
-                    <div class="chart-placeholder">
-                        Distribution Chart: Hours between sessions (retention proxy)
                     </div>
                 </div>
             </div>
@@ -928,13 +879,6 @@
                 </div>
             </div>
 
-            <div class="chart-container full-width">
-                <div class="chart-title">LLM Usage Trends Over Time</div>
-                <div class="chart-placeholder">
-                    <canvas id="llm-usage-trends-chart"></canvas>
-                </div>
-            </div>
-
             <div class="table-container" style="margin-top: 30px;">
                 <div class="chart-title">LLM Platform Details</div>
                 <table>
@@ -956,27 +900,16 @@
 
             <div class="chart-grid" style="margin-top: 30px;">
                 <div class="chart-container">
-                    <div class="chart-title">User LLM Diversity</div>
+                    <div class="chart-title">LLM Usage Trends Over Time</div>
                     <div class="chart-placeholder">
-                        Bar Chart: # of users by LLMs used (1, 2, 3, 4+)
+                        <canvas id="llm-usage-trends-chart"></canvas>
                     </div>
                 </div>
 
                 <div class="chart-container">
-                    <div class="chart-title">Desktop vs Mobile Usage</div>
-                    <div class="metric-list">
-                        <div class="metric-item">
-                            <span class="metric-item-label">Desktop Browser</span>
-                            <span class="metric-item-value">7,256 (81%)</span>
-                        </div>
-                        <div class="metric-item">
-                            <span class="metric-item-label">Mobile Web</span>
-                            <span class="metric-item-value">1,678 (19%)</span>
-                        </div>
-                        <div class="metric-item">
-                            <span class="metric-item-label">Cross-Device Users</span>
-                            <span class="metric-item-value">534 (19%)</span>
-                        </div>
+                    <div class="chart-title">User LLM Diversity</div>
+                    <div class="chart-placeholder">
+                        <canvas id="llm-diversity-chart"></canvas>
                     </div>
                 </div>
             </div>
@@ -988,15 +921,13 @@
                 <h2>Database View</h2>
                 <div class="date-filter">
                     <label>Table:</label>
-                    <select id="dbview-table-select" onchange="loadDBViewData()">
-                        <option value="users">Users</option>
-                        <option value="contexts">Context Versions</option>
-                        <option value="feedbacks">Feedbacks</option>
-                        <option value="upgrades">Upgrade Interests</option>
-                        <option value="analytics">Analytics Events</option>
-                        <option value="installs">Install Events</option>
-                        <option value="onboarding">Onboarding Events</option>
-                    </select>
+                        <select id="dbview-table-select" onchange="loadDBViewData()">
+                            <option value="users">Users</option>
+                            <option value="contexts">Context Versions</option>
+                            <option value="feedbacks">Feedbacks</option>
+                            <option value="upgrades">Upgrade Interests</option>
+                            <option value="analytics">Analytics Events</option>
+                        </select>
                 </div>
             </div>
 

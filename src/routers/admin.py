@@ -514,10 +514,9 @@ def get_user_lifecycle(
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get user lifecycle distribution"""
+    """Get user lifecycle distribution - Active and Dormant only"""
     now = datetime.now(timezone.utc)
     week_ago = now - timedelta(days=7)
-    two_weeks_ago = now - timedelta(days=14)
     
     total_users = session.exec(select(func.count(User.id))).one() or 0
     
@@ -527,32 +526,14 @@ def get_user_lifecycle(
         .where(AnalyticsEvent.created_at >= week_ago)
     ).one() or 0
     
-    # At-risk: activity between 7-14 days ago but not in last 7 days
-    at_risk_users = session.exec(
-        select(func.count(func.distinct(AnalyticsEvent.user_id)))
-        .where(AnalyticsEvent.created_at >= two_weeks_ago)
-        .where(AnalyticsEvent.created_at < week_ago)
-    ).one() or 0
-    
-    # Remove overlap (users who are also active)
-    active_user_ids = set(session.exec(
-        select(AnalyticsEvent.user_id)
-        .where(AnalyticsEvent.created_at >= week_ago)
-        .distinct()
-    ).all())
-    
-    at_risk = max(0, at_risk_users - len(active_user_ids))
-    
-    # Dormant: total - active - at_risk
-    dormant = max(0, total_users - active - at_risk)
+    # Dormant: total - active (users with no activity in last 7 days)
+    dormant = max(0, total_users - active)
     
     return {
         "active_users": {"count": active, "percentage": round(safe_divide(active * 100, total_users), 1)},
-        "at_risk_users": {"count": at_risk, "percentage": round(safe_divide(at_risk * 100, total_users), 1)},
         "dormant_users": {"count": dormant, "percentage": round(safe_divide(dormant * 100, total_users), 1)},
         # Keep old format for backward compatibility
         "active": {"count": active, "percentage": round(safe_divide(active * 100, total_users), 1)},
-        "at_risk": {"count": at_risk, "percentage": round(safe_divide(at_risk * 100, total_users), 1)},
         "dormant": {"count": dormant, "percentage": round(safe_divide(dormant * 100, total_users), 1)}
     }
 
@@ -563,41 +544,46 @@ def get_performance_health(
     session: Session = Depends(get_session)
 ):
     """Get performance health metrics from analytics events"""
-    # Calculate from analytics events if we track errors
-    # For now, we'll calculate what we can from available data
-    
-    # Total context-related events in last 7 days
     week_ago = datetime.now(timezone.utc) - timedelta(days=7)
-    context_events = session.exec(
-        select(func.count(AnalyticsEvent.id))
+    
+    retrieval_events = session.exec(
+        select(AnalyticsEvent.event_metadata)
         .where(AnalyticsEvent.created_at >= week_ago)
-        .where(AnalyticsEvent.event_type.in_(["context_used", "context_copied", "context_created"]))
-    ).one() or 0
+        .where(AnalyticsEvent.event_type == "context_retrieved")
+    ).all()
     
-    # Successful context operations (all context events are successful by default)
-    # If we had error events, we'd track them separately
-    successful_events = context_events
+    retrieval_times = []
+    for event_metadata in retrieval_events:
+        if isinstance(event_metadata, dict) and "retrieval_time_ms" in event_metadata:
+            try:
+                time_val = float(event_metadata["retrieval_time_ms"])
+                if time_val is not None and not (isinstance(time_val, float) and (time_val < 0 or time_val > 100000)):
+                    retrieval_times.append(time_val)
+            except (ValueError, TypeError):
+                pass
     
-    # Error rate - since we don't track errors explicitly, assume low error rate
-    # In a production system, you'd track error events separately
-    error_rate = 0.1  # Default low error rate assumption
+    avg_retrieval_time_ms = round(sum(retrieval_times) / len(retrieval_times), 1) if retrieval_times else None
     
-    # Uptime calculation (simplified - based on activity)
-    # In a real system, this would come from monitoring
-    # For now, calculate based on consistent activity
-    days_with_activity = session.exec(
-        select(func.count(func.distinct(func.date(AnalyticsEvent.created_at))))
+    events = session.exec(
+        select(AnalyticsEvent.created_at)
         .where(AnalyticsEvent.created_at >= week_ago)
-    ).one() or 0
+    ).all()
     
-    uptime_percent = (days_with_activity / 7) * 100 if days_with_activity > 0 else 95.0
+    unique_hours = set()
+    for event_time in events:
+        hour_key = event_time.replace(minute=0, second=0, microsecond=0)
+        unique_hours.add(hour_key)
+    
+    hours_with_activity = len(unique_hours)
+    total_hours = 168
+    uptime_percent = round((hours_with_activity / total_hours) * 100, 1) if hours_with_activity > 0 else 95.0
+    uptime_percent = min(100.0, uptime_percent)
     
     return {
-        "avg_retrieval_time_ms": None,  # Not tracked in current analytics
-        "error_rate_percent": round(error_rate, 2),
-        "uptime_percent": round(uptime_percent, 1),
-        "total_events_7d": context_events,
-        "successful_operations_7d": successful_events
+        "avg_retrieval_time_ms": avg_retrieval_time_ms,
+        "uptime_percent": uptime_percent,
+        "total_retrievals_7d": len(retrieval_times),
+        "hours_with_activity": hours_with_activity
     }
 
 
@@ -690,74 +676,61 @@ def get_acquisition_funnel(
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get install funnel data"""
+    """Get signup conversion funnel data"""
     start_date, end_date = parse_time_range(time_range)
     
-    # Install events
-    install_started = session.exec(
-        select(func.count(InstallEvent.id))
-        .where(InstallEvent.status == "started")
-        .where(InstallEvent.created_at >= start_date)
-    ).one() or 0
-    
-    install_completed = session.exec(
-        select(func.count(InstallEvent.id))
-        .where(InstallEvent.status == "completed")
-        .where(InstallEvent.created_at >= start_date)
-    ).one() or 0
-    
-    # Accounts created
     accounts = session.exec(
         select(func.count(User.id))
         .where(User.created_at >= start_date)
+        .where(User.created_at < end_date)
     ).one() or 0
     
-    # Email verified
     verified = session.exec(
         select(func.count(User.id))
         .where(User.created_at >= start_date)
+        .where(User.created_at < end_date)
         .where(User.email_verified == True)
     ).one() or 0
     
-    # Chrome Web Store visits - not tracked, set to -1
-    store_visits = -1
+    onboarding_completed = session.exec(
+        select(func.count(User.id))
+        .where(User.created_at >= start_date)
+        .where(User.created_at < end_date)
+        .where(User.onboarding_completed == True)
+    ).one() or 0
+    
+    users_with_first_box = session.exec(
+        select(func.count(func.distinct(ContextVersion.user_id)))
+        .join(User, ContextVersion.user_id == User.id)
+        .where(User.created_at >= start_date)
+        .where(User.created_at < end_date)
+    ).one() or 0
     
     return {
         "funnel": [
             {
-                "stage": "Chrome Web Store Visits",
-                "count": store_visits,
-                "conversion_rate": -1,  # Cannot calculate without store visits
-                "drop_off": -1,
-                "trend_percent": -1
-            },
-            {
-                "stage": "Install Started",
-                "count": install_started,
-                "conversion_rate": -1 if store_visits == -1 else round(safe_divide(install_started * 100, store_visits), 1),
-                "drop_off": -1 if store_visits == -1 else store_visits - install_started,
-                "trend_percent": -1
-            },
-            {
-                "stage": "Install Completed",
-                "count": install_completed,
-                "conversion_rate": -1 if store_visits == -1 else round(safe_divide(install_completed * 100, store_visits), 1),
-                "drop_off": install_started - install_completed,
-                "trend_percent": -1
-            },
-            {
                 "stage": "Account Created",
                 "count": accounts,
-                "conversion_rate": -1 if store_visits == -1 else round(safe_divide(accounts * 100, store_visits), 1),
-                "drop_off": install_completed - accounts,
-                "trend_percent": -1
+                "conversion_rate": 100.0,
+                "drop_off": 0
             },
             {
                 "stage": "Email Verified",
                 "count": verified,
-                "conversion_rate": -1 if store_visits == -1 else round(safe_divide(verified * 100, store_visits), 1),
-                "drop_off": accounts - verified,
-                "trend_percent": -1
+                "conversion_rate": round(safe_divide(verified * 100, accounts), 1) if accounts > 0 else 0,
+                "drop_off": accounts - verified
+            },
+            {
+                "stage": "Onboarding Completed",
+                "count": onboarding_completed,
+                "conversion_rate": round(safe_divide(onboarding_completed * 100, verified), 1) if verified > 0 else 0,
+                "drop_off": verified - onboarding_completed
+            },
+            {
+                "stage": "Made First Box",
+                "count": users_with_first_box,
+                "conversion_rate": round(safe_divide(users_with_first_box * 100, onboarding_completed), 1) if onboarding_completed > 0 else 0,
+                "drop_off": onboarding_completed - users_with_first_box
             }
         ]
     }
@@ -809,54 +782,58 @@ def get_acquisition_churn(
 ):
     """Get churn metrics"""
     now = datetime.now(timezone.utc)
-    week_ago = now - timedelta(days=7)
-    month_ago = now - timedelta(days=30)
     
-    # Never activated users (no analytics events)
     total_users = session.exec(select(func.count(User.id))).one() or 0
     users_with_activity = session.exec(
         select(func.count(func.distinct(AnalyticsEvent.user_id)))
     ).one() or 0
     never_activated = total_users - users_with_activity
     
-    # Calculate weekly churn: users who were active 2 weeks ago but not in last week
     two_weeks_ago = now - timedelta(days=14)
     one_week_ago = now - timedelta(days=7)
     
-    # Users active 2 weeks ago
-    users_active_2w_ago = session.exec(
-        select(func.count(func.distinct(AnalyticsEvent.user_id)))
+    users_active_2w_ago_ids = set(session.exec(
+        select(AnalyticsEvent.user_id)
         .where(AnalyticsEvent.created_at >= two_weeks_ago)
         .where(AnalyticsEvent.created_at < one_week_ago)
-    ).one() or 1
+        .where(AnalyticsEvent.user_id != None)
+        .distinct()
+    ).all())
     
-    # Users active in last week
-    users_active_last_week = session.exec(
-        select(func.count(func.distinct(AnalyticsEvent.user_id)))
+    users_active_last_week_ids = set(session.exec(
+        select(AnalyticsEvent.user_id)
         .where(AnalyticsEvent.created_at >= one_week_ago)
-    ).one() or 0
+        .where(AnalyticsEvent.user_id != None)
+        .distinct()
+    ).all())
     
-    # Users who were active 2 weeks ago but not in last week (churned)
-    churned_weekly = users_active_2w_ago - users_active_last_week
-    weekly_churn_rate = safe_divide(churned_weekly * 100, users_active_2w_ago)
+    churned_users_weekly = users_active_2w_ago_ids - users_active_last_week_ids
+    churned_weekly_count = len(churned_users_weekly)
+    users_active_2w_ago_count = len(users_active_2w_ago_ids)
+    weekly_churn_rate = safe_divide(churned_weekly_count * 100, users_active_2w_ago_count) if users_active_2w_ago_count > 0 else 0
     
-    # Calculate monthly churn: users who were active 2 months ago but not in last month
     two_months_ago = now - timedelta(days=60)
     one_month_ago = now - timedelta(days=30)
     
-    users_active_2m_ago = session.exec(
-        select(func.count(func.distinct(AnalyticsEvent.user_id)))
+    users_active_2m_ago_ids = set(session.exec(
+        select(AnalyticsEvent.user_id)
         .where(AnalyticsEvent.created_at >= two_months_ago)
         .where(AnalyticsEvent.created_at < one_month_ago)
-    ).one() or 1
+        .where(AnalyticsEvent.user_id != None)
+        .distinct()
+    ).all())
     
-    users_active_last_month = session.exec(
-        select(func.count(func.distinct(AnalyticsEvent.user_id)))
+    users_active_last_month_ids = set(session.exec(
+        select(AnalyticsEvent.user_id)
         .where(AnalyticsEvent.created_at >= one_month_ago)
-    ).one() or 0
+        .where(AnalyticsEvent.user_id != None)
+        .distinct()
+    ).all())
     
-    churned_monthly = users_active_2m_ago - users_active_last_month
-    monthly_churn_rate = safe_divide(churned_monthly * 100, users_active_2m_ago)
+    churned_users_monthly = users_active_2m_ago_ids - users_active_last_month_ids
+    churned_monthly_count = len(churned_users_monthly)
+    users_active_2m_ago_count = len(users_active_2m_ago_ids)
+    monthly_churn_rate = safe_divide(churned_monthly_count * 100, users_active_2m_ago_count) if users_active_2m_ago_count > 0 else 0
     
     return {
         "weekly_churn_rate": round(weekly_churn_rate, 1),
@@ -1188,10 +1165,11 @@ def get_onboarding_funnel(
     if onboarding_started == 0:
         onboarding_started = total_users
     
-    # Not completed = total users - completed
-    not_completed = total_users - completed
+    # Not completed = users who started but didn't complete
+    not_completed = onboarding_started - completed
     
     # Format for frontend - simple: Started, Completed, Not Completed
+    # Started is baseline (100%), Completed shows conversion from Started, Not Completed shows remaining
     stages = [
         {
             "stage": "Started Onboarding",
@@ -1201,12 +1179,12 @@ def get_onboarding_funnel(
         {
             "stage": "Completed Onboarding",
             "count": completed,
-            "percentage": round(safe_divide(completed * 100, total_users), 1) if total_users > 0 else 0
+            "percentage": round(safe_divide(completed * 100, onboarding_started), 1) if onboarding_started > 0 else 0
         },
         {
             "stage": "Not Completed",
             "count": not_completed,
-            "percentage": round(safe_divide(not_completed * 100, total_users), 1) if total_users > 0 else 0
+            "percentage": round(safe_divide(not_completed * 100, onboarding_started), 1) if onboarding_started > 0 else 0
         }
     ]
     
@@ -1226,34 +1204,40 @@ def get_features_metrics(
     session: Session = Depends(get_session)
 ):
     """Get feature adoption metrics"""
+    start_date, end_date = parse_time_range(time_range)
+    
     total_users = session.exec(select(func.count(User.id))).one() or 0
     
-    # Users with at least one context
     users_with_context = session.exec(
         select(func.count(func.distinct(ContextVersion.user_id)))
+        .where(ContextVersion.created_at >= start_date)
+        .where(ContextVersion.created_at < end_date)
     ).one() or 0
     
     utilization = safe_divide(users_with_context * 100, total_users)
     
-    # Multi-version users
     multi_version = session.exec(
         select(ContextVersion.user_id)
+        .where(ContextVersion.created_at >= start_date)
+        .where(ContextVersion.created_at < end_date)
         .group_by(ContextVersion.user_id)
         .having(func.count(ContextVersion.id) > 1)
     ).all()
     
-    # Dashboard visitors
     dashboard_visitors = session.exec(
         select(func.count(func.distinct(AnalyticsEvent.user_id)))
         .where(AnalyticsEvent.event_type == "dashboard_visited")
+        .where(AnalyticsEvent.created_at >= start_date)
+        .where(AnalyticsEvent.created_at < end_date)
     ).one() or 0
     
-    # Calculate average active boxes per user
     user_box_counts = session.exec(
         select(
             ContextVersion.user_id,
             func.count(func.distinct(ContextVersion.box_name)).label("box_count")
         )
+        .where(ContextVersion.created_at >= start_date)
+        .where(ContextVersion.created_at < end_date)
         .group_by(ContextVersion.user_id)
     ).all()
     
@@ -1271,34 +1255,136 @@ def get_features_metrics(
 
 @analytics_router.get("/features/adoption-breakdown")
 def get_features_adoption_breakdown(
+    time_range: str = "30d",
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get detailed feature adoption"""
+    """Get detailed feature adoption with real calculations"""
+    start_date, end_date = parse_time_range(time_range)
+    period_days = (end_date - start_date).days
+    prev_start = start_date - timedelta(days=period_days)
+    
     total_users = session.exec(select(func.count(User.id))).one() or 0
     
     users_with_context = session.exec(
         select(func.count(func.distinct(ContextVersion.user_id)))
+        .where(ContextVersion.created_at >= start_date)
+        .where(ContextVersion.created_at < end_date)
     ).one() or 0
     
-    multi_version = session.exec(
+    users_with_context_prev = session.exec(
+        select(func.count(func.distinct(ContextVersion.user_id)))
+        .where(ContextVersion.created_at >= prev_start)
+        .where(ContextVersion.created_at < start_date)
+    ).one() or 0
+    
+    avg_boxes_per_user = 0
+    if users_with_context > 0:
+        user_box_counts = session.exec(
+            select(func.count(func.distinct(ContextVersion.box_name)))
+            .where(ContextVersion.created_at >= start_date)
+            .where(ContextVersion.created_at < end_date)
+            .group_by(ContextVersion.user_id)
+        ).all()
+        avg_boxes_per_user = safe_divide(sum(user_box_counts), len(user_box_counts)) if user_box_counts else 0
+    
+    multi_version_users = session.exec(
         select(ContextVersion.user_id)
+        .where(ContextVersion.created_at >= start_date)
+        .where(ContextVersion.created_at < end_date)
         .group_by(ContextVersion.user_id)
         .having(func.count(ContextVersion.id) > 1)
     ).all()
     
+    multi_version_count = len(multi_version_users)
+    multi_version_prev_users = session.exec(
+        select(ContextVersion.user_id)
+        .where(ContextVersion.created_at >= prev_start)
+        .where(ContextVersion.created_at < start_date)
+        .group_by(ContextVersion.user_id)
+        .having(func.count(ContextVersion.id) > 1)
+    ).all()
+    multi_version_prev = len(multi_version_prev_users)
+    
+    avg_versions_per_user = 0
+    if multi_version_count > 0:
+        version_counts = session.exec(
+            select(func.count(ContextVersion.id))
+            .where(ContextVersion.created_at >= start_date)
+            .where(ContextVersion.created_at < end_date)
+            .group_by(ContextVersion.user_id)
+            .having(func.count(ContextVersion.id) > 1)
+        ).all()
+        avg_versions_per_user = safe_divide(sum(version_counts), len(version_counts)) if version_counts else 0
+    
     dashboard_users = session.exec(
         select(func.count(func.distinct(AnalyticsEvent.user_id)))
         .where(AnalyticsEvent.event_type == "dashboard_visited")
+        .where(AnalyticsEvent.created_at >= start_date)
+        .where(AnalyticsEvent.created_at < end_date)
     ).one() or 0
+    
+    dashboard_users_prev = session.exec(
+        select(func.count(func.distinct(AnalyticsEvent.user_id)))
+        .where(AnalyticsEvent.event_type == "dashboard_visited")
+        .where(AnalyticsEvent.created_at >= prev_start)
+        .where(AnalyticsEvent.created_at < start_date)
+    ).one() or 0
+    
+    total_dashboard_visits = session.exec(
+        select(func.count(AnalyticsEvent.id))
+        .where(AnalyticsEvent.event_type == "dashboard_visited")
+        .where(AnalyticsEvent.created_at >= start_date)
+        .where(AnalyticsEvent.created_at < end_date)
+    ).one() or 0
+    
+    avg_visits_per_user = safe_divide(total_dashboard_visits, dashboard_users) if dashboard_users > 0 else 0
+    visits_per_week = safe_divide(avg_visits_per_user * 7, period_days) if period_days > 0 else 0
     
     feedback_users = session.exec(
         select(func.count(func.distinct(Feedback.user_id)))
+        .where(Feedback.created_at >= start_date)
+        .where(Feedback.created_at < end_date)
     ).one() or 0
+    
+    feedback_users_prev = session.exec(
+        select(func.count(func.distinct(Feedback.user_id)))
+        .where(Feedback.created_at >= prev_start)
+        .where(Feedback.created_at < start_date)
+    ).one() or 0
+    
+    total_feedback = session.exec(
+        select(func.count(Feedback.id))
+        .where(Feedback.created_at >= start_date)
+        .where(Feedback.created_at < end_date)
+    ).one() or 0
+    
+    avg_feedback_per_user = safe_divide(total_feedback, feedback_users) if feedback_users > 0 else 0
     
     upgrade_users = session.exec(
         select(func.count(func.distinct(UpgradeInterest.user_id)))
+        .where(UpgradeInterest.created_at >= start_date)
+        .where(UpgradeInterest.created_at < end_date)
     ).one() or 0
+    
+    upgrade_users_prev = session.exec(
+        select(func.count(func.distinct(UpgradeInterest.user_id)))
+        .where(UpgradeInterest.created_at >= prev_start)
+        .where(UpgradeInterest.created_at < start_date)
+    ).one() or 0
+    
+    total_upgrades = session.exec(
+        select(func.count(UpgradeInterest.id))
+        .where(UpgradeInterest.created_at >= start_date)
+        .where(UpgradeInterest.created_at < end_date)
+    ).one() or 0
+    
+    avg_upgrade_per_user = safe_divide(total_upgrades, upgrade_users) if upgrade_users > 0 else 0
+    
+    def calculate_trend(current, previous):
+        if previous == 0:
+            return 100.0 if current > 0 else 0.0
+        return round(((current - previous) / previous) * 100, 1)
     
     return {
         "features": [
@@ -1306,36 +1392,36 @@ def get_features_adoption_breakdown(
                 "name": "Created Context (any box)",
                 "unique_users": users_with_context,
                 "adoption_rate": round(safe_divide(users_with_context * 100, total_users), 1),
-                "avg_usage": "3.8 boxes",
-                "trend_percent": 5
+                "avg_usage": f"{round(avg_boxes_per_user, 1)} boxes",
+                "trend_percent": calculate_trend(users_with_context, users_with_context_prev)
             },
             {
                 "name": "Multiple Versions",
-                "unique_users": len(multi_version),
-                "adoption_rate": round(safe_divide(len(multi_version) * 100, total_users), 1),
-                "avg_usage": "4.2 versions",
-                "trend_percent": 12
+                "unique_users": multi_version_count,
+                "adoption_rate": round(safe_divide(multi_version_count * 100, total_users), 1),
+                "avg_usage": f"{round(avg_versions_per_user, 1)} versions",
+                "trend_percent": calculate_trend(multi_version_count, multi_version_prev)
             },
             {
                 "name": "Dashboard Access",
                 "unique_users": dashboard_users,
                 "adoption_rate": round(safe_divide(dashboard_users * 100, total_users), 1),
-                "avg_usage": "2.3 visits/week",
-                "trend_percent": 8
+                "avg_usage": f"{round(visits_per_week, 1)} visits/week",
+                "trend_percent": calculate_trend(dashboard_users, dashboard_users_prev)
             },
             {
                 "name": "Feedback Submitted",
                 "unique_users": feedback_users,
                 "adoption_rate": round(safe_divide(feedback_users * 100, total_users), 1),
-                "avg_usage": "1.2 submissions",
-                "trend_percent": 0
+                "avg_usage": f"{round(avg_feedback_per_user, 1)} submissions",
+                "trend_percent": calculate_trend(feedback_users, feedback_users_prev)
             },
             {
                 "name": "Upgrade Interest",
                 "unique_users": upgrade_users,
                 "adoption_rate": round(safe_divide(upgrade_users * 100, total_users), 1),
-                "avg_usage": "1.0 submission",
-                "trend_percent": 42
+                "avg_usage": f"{round(avg_upgrade_per_user, 1)} submission",
+                "trend_percent": calculate_trend(upgrade_users, upgrade_users_prev)
             }
         ]
     }
@@ -1631,9 +1717,29 @@ def get_llm_metrics(
     multi_llm_percent = round(safe_divide(multi_llm_users * 100, total_active_users), 1)
     
     # Cross-platform sessions (users who used multiple LLMs in same day)
-    # Simplified: count users with 2+ distinct LLMs
-    cross_platform_users = multi_llm_users
-    cross_platform_percent = multi_llm_percent
+    # Get daily LLM usage per user
+    daily_user_llms = defaultdict(lambda: defaultdict(set))
+    user_llm_daily = session.exec(
+        select(
+            ContextVersion.user_id,
+            ContextVersion.last_llm_used,
+            ContextVersion.last_used_at
+        )
+        .where(ContextVersion.last_llm_used != None)
+        .where(ContextVersion.last_used_at >= start_date)
+        .where(ContextVersion.last_used_at < end_date)
+        .distinct()
+    ).all()
+    
+    for user_id, llm, usage_datetime in user_llm_daily:
+        if llm and usage_datetime:
+            usage_date = usage_datetime.date()
+            daily_user_llms[user_id][usage_date].add(categorize_llm(llm))
+    
+    cross_platform_users = sum(1 for user_days in daily_user_llms.values() 
+                               for day_llms in user_days.values() 
+                               if len(day_llms) >= 2)
+    cross_platform_percent = round(safe_divide(cross_platform_users * 100, total_active_users), 1) if total_active_users > 0 else 0
     
     return {
         "total_llm_apps_used": unique_llms,
@@ -1794,6 +1900,7 @@ def get_llm_platform_details(
 ):
     """Get detailed LLM platform statistics"""
     start_date, end_date = parse_time_range(time_range)
+    prev_start = start_date - (end_date - start_date)
     
     from ..constants import LLM_DISPLAY_NAMES, LLM_SITES
     
@@ -1844,6 +1951,24 @@ def get_llm_platform_details(
             if display_name == "Other":
                 platform_data[display_name]["other_llms"].add(llm)
     
+    # Get previous period data for growth calculation
+    prev_llm_usage = session.exec(
+        select(
+            ContextVersion.last_llm_used,
+            func.sum(ContextVersion.uses_count).label("total_copies")
+        )
+        .where(ContextVersion.last_used_at >= prev_start)
+        .where(ContextVersion.last_used_at < start_date)
+        .where(ContextVersion.last_llm_used != None)
+        .group_by(ContextVersion.last_llm_used)
+    ).all()
+    
+    prev_platform_data = defaultdict(int)
+    for llm, copies in prev_llm_usage:
+        if llm:
+            display_name = categorize_llm(llm)
+            prev_platform_data[display_name] += int(copies) if copies else 0
+    
     # Format results - exclude "Other" if it has very few copies or is empty
     result = []
     for platform, data in sorted(platform_data.items(), key=lambda x: x[1]["copies"], reverse=True):
@@ -1856,6 +1981,9 @@ def get_llm_platform_details(
         avg_copies = safe_divide(data["copies"], unique_users) if unique_users > 0 else 0
         market_share = round(safe_divide(data["copies"] * 100, total_copies), 1) if total_copies > 0 else 0
         
+        prev_copies = prev_platform_data.get(platform, 0)
+        growth = calculate_percentage_change(data["copies"], prev_copies) if prev_copies > 0 else (100.0 if data["copies"] > 0 else 0.0)
+        
         # For "Other" platform, include list of LLMs
         other_llms_list = list(data["other_llms"]) if platform == "Other" else []
         
@@ -1865,11 +1993,52 @@ def get_llm_platform_details(
             "total_copies": data["copies"],
             "avg_copies_per_user": round(avg_copies, 1),
             "market_share": market_share,
-            "growth": 0,  # Would need previous period comparison
+            "growth": round(growth, 1),
             "other_llms": other_llms_list  # List of LLM URLs/names in "Other"
         })
     
     return {"platforms": result}
+
+
+@analytics_router.get("/llm/user-diversity")
+def get_llm_user_diversity(
+    time_range: str = "30d",
+    admin: dict = Depends(get_admin_user),
+    session: Session = Depends(get_session)
+):
+    """Get distribution of users by number of LLMs they use"""
+    start_date, end_date = parse_time_range(time_range)
+    
+    user_llm_counts = session.exec(
+        select(
+            ContextVersion.user_id,
+            func.count(func.distinct(ContextVersion.last_llm_used)).label("llm_count")
+        )
+        .where(ContextVersion.last_llm_used != None)
+        .where(ContextVersion.last_used_at >= start_date)
+        .where(ContextVersion.last_used_at < end_date)
+        .group_by(ContextVersion.user_id)
+    ).all()
+    
+    distribution = defaultdict(int)
+    for _, count in user_llm_counts:
+        if count == 1:
+            distribution["1"] += 1
+        elif count == 2:
+            distribution["2"] += 1
+        elif count == 3:
+            distribution["3"] += 1
+        else:
+            distribution["4+"] += 1
+    
+    result = []
+    for label in ["1", "2", "3", "4+"]:
+        result.append({
+            "llms": label,
+            "users": distribution[label]
+        })
+    
+    return {"distribution": result}
 
 
 # ============================================================================
@@ -1880,7 +2049,7 @@ def get_llm_platform_details(
 def get_db_view(
     table_name: str,
     page: int = 1,
-    page_size: int = 5,
+    page_size: int = 10,
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
@@ -1997,16 +2166,23 @@ def get_db_view(
             .limit(page_size)
         ).all()
         
-        headers = ["ID", "User ID", "Event Type", "Metadata", "Created At"]
+        headers = ["ID", "User ID", "Event Type", "Retrieval Time", "Metadata", "Created At"]
         rows = []
         for event in events:
-            # Show full metadata, formatted nicely
             metadata_str = json.dumps(event.event_metadata, indent=2) if event.event_metadata else "{}"
+            
+            retrieval_time = "N/A"
+            if event.event_type == "context_retrieved" and isinstance(event.event_metadata, dict):
+                retrieval_time_ms = event.event_metadata.get("retrieval_time_ms")
+                if retrieval_time_ms is not None:
+                    retrieval_time = f"{retrieval_time_ms}ms"
+            
             rows.append([
                 str(event.id)[:8] + "...",
                 str(event.user_id)[:8] + "..." if event.user_id else "N/A",
                 event.event_type,
-                metadata_str,  # Show full metadata
+                retrieval_time,
+                metadata_str,
                 event.created_at.strftime("%Y-%m-%d %H:%M") if event.created_at else ""
             ])
         
