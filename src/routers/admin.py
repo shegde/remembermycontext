@@ -196,6 +196,17 @@ def get_overview_kpis(
     ).one() or 0
     onboarding_rate = safe_divide(completed_onboarding * 100, total_users_count)
     
+    prev_total_users = session.exec(
+        select(func.count(User.id))
+        .where(User.created_at < start_date)
+    ).one() or 1
+    prev_completed_onboarding = session.exec(
+        select(func.count(User.id))
+        .where(User.onboarding_completed == True)
+        .where(User.created_at < start_date)
+    ).one() or 0
+    prev_onboarding_rate = safe_divide(prev_completed_onboarding * 100, prev_total_users)
+    
     # 7-day retention (simplified - users active in week 1 after signup)
     week_ago = end_date - timedelta(days=14)
     two_weeks_ago = week_ago - timedelta(days=7)
@@ -217,6 +228,26 @@ def get_overview_kpis(
     
     retention_7d = safe_divide(retained_users * 100, cohort_users)
     
+    prev_week_ago = start_date - timedelta(days=14)
+    prev_two_weeks_ago = prev_week_ago - timedelta(days=7)
+    
+    prev_cohort_users = session.exec(
+        select(func.count(User.id))
+        .where(User.created_at >= prev_two_weeks_ago)
+        .where(User.created_at < prev_week_ago)
+    ).one() or 1
+    
+    prev_retained_users = session.exec(
+        select(func.count(func.distinct(AnalyticsEvent.user_id)))
+        .join(User, AnalyticsEvent.user_id == User.id)
+        .where(User.created_at >= prev_two_weeks_ago)
+        .where(User.created_at < prev_week_ago)
+        .where(AnalyticsEvent.created_at >= prev_week_ago)
+        .where(AnalyticsEvent.created_at < prev_week_ago + timedelta(days=7))
+    ).one() or 0
+    
+    prev_retention_7d = safe_divide(prev_retained_users * 100, prev_cohort_users)
+    
     return {
         "total_users": total_users,
         "active_users_7d": active_events,
@@ -230,9 +261,9 @@ def get_overview_kpis(
         "upgrade_interest_total": upgrade_interest,
         "upgrade_interest_change_percent": calculate_percentage_change(upgrade_current, upgrade_prev),
         "onboarding_completion_rate": round(onboarding_rate, 1),
-        "onboarding_completion_change_percent": 0,  # TODO: calculate historical
+        "onboarding_completion_change_percent": calculate_percentage_change(onboarding_rate, prev_onboarding_rate),
         "retention_7d": round(retention_7d, 1),
-        "retention_7d_change_percent": 0  # TODO: calculate historical
+        "retention_7d_change_percent": calculate_percentage_change(retention_7d, prev_retention_7d)
     }
 
 
@@ -1789,7 +1820,10 @@ def get_llm_platform_distribution(
     
     result = {}
     for llm, count in llm_data.items():
-        result[llm] = {"percentage": round(safe_divide(count * 100, total), 1)}
+        result[llm] = {
+            "count": count,
+            "percentage": round(safe_divide(count * 100, total), 1)
+        }
     
     return result
 
@@ -2251,31 +2285,324 @@ def get_db_view(
 
 @analytics_router.get("/performance/metrics")
 def get_performance_metrics(
+    time_range: str = "7d",
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get performance metrics"""
-    # Get from performance health endpoint data
-    week_ago = datetime.now(timezone.utc) - timedelta(days=7)
-    context_events = session.exec(
-        select(func.count(AnalyticsEvent.id))
-        .where(AnalyticsEvent.created_at >= week_ago)
-        .where(AnalyticsEvent.event_type.in_(["context_used", "context_copied", "context_created"]))
-    ).one() or 0
+    """Get performance metrics KPIs"""
+    start_date, end_date = parse_time_range(time_range)
     
-    days_with_activity = session.exec(
-        select(func.count(func.distinct(func.date(AnalyticsEvent.created_at))))
-        .where(AnalyticsEvent.created_at >= week_ago)
-    ).one() or 0
+    retrieval_events = session.exec(
+        select(AnalyticsEvent.event_metadata)
+        .where(AnalyticsEvent.created_at >= start_date)
+        .where(AnalyticsEvent.created_at < end_date)
+        .where(AnalyticsEvent.event_type == "context_retrieved")
+    ).all()
     
-    uptime_percent = (days_with_activity / 7) * 100 if days_with_activity > 0 else 95.0
+    retrieval_times = []
+    for event_metadata in retrieval_events:
+        if isinstance(event_metadata, dict) and "retrieval_time_ms" in event_metadata:
+            try:
+                time_val = float(event_metadata["retrieval_time_ms"])
+                if time_val is not None and not (isinstance(time_val, float) and (time_val < 0 or time_val > 100000)):
+                    retrieval_times.append(time_val)
+            except (ValueError, TypeError):
+                pass
+    
+    avg_retrieval_time_ms = round(sum(retrieval_times) / len(retrieval_times), 1) if retrieval_times else None
+    
+    p95_retrieval_time_ms = None
+    if retrieval_times:
+        sorted_times = sorted(retrieval_times)
+        p95_index = int(len(sorted_times) * 0.95)
+        p95_retrieval_time_ms = round(sorted_times[min(p95_index, len(sorted_times) - 1)], 1)
+    
+    events = session.exec(
+        select(AnalyticsEvent.created_at)
+        .where(AnalyticsEvent.created_at >= start_date)
+        .where(AnalyticsEvent.created_at < end_date)
+    ).all()
+    
+    period_days = (end_date - start_date).days
+    total_hours = period_days * 24
+    
+    unique_hours = set()
+    for event_time in events:
+        hour_key = event_time.replace(minute=0, second=0, microsecond=0)
+        unique_hours.add(hour_key)
+    
+    hours_with_activity = len(unique_hours)
+    uptime_percent = round((hours_with_activity / total_hours) * 100, 1) if total_hours > 0 else 95.0
+    uptime_percent = min(100.0, uptime_percent)
+    
+    total_retrievals = len(retrieval_times)
     
     return {
-        "avg_retrieval_time_ms": -1,  # Not tracked in current analytics
-        "error_rate_percent": 0.1,  # Default assumption
-        "uptime_percent": round(uptime_percent, 1),
-        "downtime_minutes_per_month": -1,  # Not tracked
-        "extension_load_time_ms": -1  # Not tracked
+        "avg_retrieval_time_ms": avg_retrieval_time_ms,
+        "p95_retrieval_time_ms": p95_retrieval_time_ms,
+        "uptime_percent": uptime_percent,
+        "total_retrievals": total_retrievals,
+        "hours_with_activity": hours_with_activity,
+        "total_hours": total_hours
+    }
+
+
+@analytics_router.get("/performance/retrieval-trends")
+def get_performance_retrieval_trends(
+    time_range: str = "7d",
+    admin: dict = Depends(get_admin_user),
+    session: Session = Depends(get_session)
+):
+    """Get retrieval time trends over time"""
+    start_date, end_date = parse_time_range(time_range)
+    
+    dates = []
+    avg_times = []
+    p95_times = []
+    request_volumes = []
+    
+    current = start_date
+    while current < end_date:
+        next_day = current + timedelta(days=1)
+        dates.append(current.strftime("%Y-%m-%d"))
+        
+        day_events = session.exec(
+            select(AnalyticsEvent.event_metadata)
+            .where(AnalyticsEvent.created_at >= current)
+            .where(AnalyticsEvent.created_at < next_day)
+            .where(AnalyticsEvent.event_type == "context_retrieved")
+        ).all()
+        
+        day_times = []
+        for event_metadata in day_events:
+            if isinstance(event_metadata, dict) and "retrieval_time_ms" in event_metadata:
+                try:
+                    time_val = float(event_metadata["retrieval_time_ms"])
+                    if time_val is not None and not (isinstance(time_val, float) and (time_val < 0 or time_val > 100000)):
+                        day_times.append(time_val)
+                except (ValueError, TypeError):
+                    pass
+        
+        if day_times:
+            filtered_times = [t for t in day_times if t <= 1000]
+            if filtered_times:
+                avg_time = round(sum(filtered_times) / len(filtered_times), 1)
+                sorted_day_times = sorted(filtered_times)
+                p95_index = int(len(sorted_day_times) * 0.95)
+                p95_time = round(sorted_day_times[min(p95_index, len(sorted_day_times) - 1)], 1)
+            else:
+                avg_time = round(sum(day_times) / len(day_times), 1)
+                sorted_day_times = sorted(day_times)
+                p95_index = int(len(sorted_day_times) * 0.95)
+                p95_time = round(sorted_day_times[min(p95_index, len(sorted_day_times) - 1)], 1)
+        else:
+            avg_time = 0
+            p95_time = 0
+        
+        avg_times.append(avg_time)
+        p95_times.append(p95_time)
+        request_volumes.append(len(day_times))
+        
+        current = next_day
+    
+    return {
+        "dates": dates,
+        "avg_retrieval_time": avg_times,
+        "p95_retrieval_time": p95_times,
+        "request_volume": request_volumes
+    }
+
+
+@analytics_router.get("/performance/percentiles")
+def get_performance_percentiles(
+    time_range: str = "7d",
+    admin: dict = Depends(get_admin_user),
+    session: Session = Depends(get_session)
+):
+    """Get retrieval time percentiles (P50, P95, P99)"""
+    start_date, end_date = parse_time_range(time_range)
+    
+    retrieval_events = session.exec(
+        select(AnalyticsEvent.event_metadata)
+        .where(AnalyticsEvent.created_at >= start_date)
+        .where(AnalyticsEvent.created_at < end_date)
+        .where(AnalyticsEvent.event_type == "context_retrieved")
+    ).all()
+    
+    retrieval_times = []
+    for event_metadata in retrieval_events:
+        if isinstance(event_metadata, dict) and "retrieval_time_ms" in event_metadata:
+            try:
+                time_val = float(event_metadata["retrieval_time_ms"])
+                if time_val is not None and not (isinstance(time_val, float) and (time_val < 0 or time_val > 100000)):
+                    retrieval_times.append(time_val)
+            except (ValueError, TypeError):
+                pass
+    
+    if not retrieval_times:
+        return {
+            "p50": None,
+            "p95": None,
+            "p99": None,
+            "min": None,
+            "max": None
+        }
+    
+    sorted_times = sorted(retrieval_times)
+    
+    def get_percentile(percentile):
+        index = int(len(sorted_times) * percentile)
+        return round(sorted_times[min(index, len(sorted_times) - 1)], 1)
+    
+    return {
+        "p50": get_percentile(0.50),
+        "p95": get_percentile(0.95),
+        "p99": get_percentile(0.99),
+        "min": round(min(sorted_times), 1),
+        "max": round(max(sorted_times), 1)
+    }
+
+
+@analytics_router.get("/performance/by-box")
+def get_performance_by_box(
+    time_range: str = "7d",
+    admin: dict = Depends(get_admin_user),
+    session: Session = Depends(get_session)
+):
+    """Get retrieval time breakdown by box type"""
+    start_date, end_date = parse_time_range(time_range)
+    
+    retrieval_events = session.exec(
+        select(AnalyticsEvent.event_metadata)
+        .where(AnalyticsEvent.created_at >= start_date)
+        .where(AnalyticsEvent.created_at < end_date)
+        .where(AnalyticsEvent.event_type == "context_retrieved")
+    ).all()
+    
+    box_times = defaultdict(list)
+    for event_metadata in retrieval_events:
+        if isinstance(event_metadata, dict):
+            box_name = event_metadata.get("box_name")
+            retrieval_time = event_metadata.get("retrieval_time_ms")
+            if box_name and retrieval_time is not None:
+                try:
+                    time_val = float(retrieval_time)
+                    if time_val is not None and not (isinstance(time_val, float) and (time_val < 0 or time_val > 100000)):
+                        box_times[box_name].append(time_val)
+                except (ValueError, TypeError):
+                    pass
+    
+    result = []
+    for box_name, times in box_times.items():
+        if times:
+            result.append({
+                "box_name": box_name,
+                "avg_time_ms": round(sum(times) / len(times), 1),
+                "p95_time_ms": round(sorted(times)[int(len(times) * 0.95)], 1) if times else 0,
+                "count": len(times)
+            })
+    
+    return {"breakdown": sorted(result, key=lambda x: x["avg_time_ms"], reverse=True)}
+
+
+@analytics_router.get("/performance/by-llm")
+def get_performance_by_llm(
+    time_range: str = "7d",
+    admin: dict = Depends(get_admin_user),
+    session: Session = Depends(get_session)
+):
+    """Get retrieval time breakdown by LLM platform"""
+    start_date, end_date = parse_time_range(time_range)
+    
+    retrieval_events = session.exec(
+        select(AnalyticsEvent)
+        .where(AnalyticsEvent.created_at >= start_date)
+        .where(AnalyticsEvent.created_at < end_date)
+        .where(AnalyticsEvent.event_type == "context_retrieved")
+    ).all()
+    
+    llm_times = defaultdict(list)
+    for event in retrieval_events:
+        if isinstance(event.event_metadata, dict):
+            retrieval_time = event.event_metadata.get("retrieval_time_ms")
+            box_name = event.event_metadata.get("box_name")
+            version_number = event.event_metadata.get("version_number")
+            
+            if box_name and event.user_id and retrieval_time is not None:
+                try:
+                    time_val = float(retrieval_time)
+                    if time_val is not None and not (isinstance(time_val, float) and (time_val < 0 or time_val > 100000)):
+                        context_version = session.exec(
+                            select(ContextVersion)
+                            .where(ContextVersion.user_id == event.user_id)
+                            .where(ContextVersion.box_name == box_name)
+                            .where(ContextVersion.version_number == (version_number if version_number else 0))
+                            .limit(1)
+                        ).first()
+                        
+                        if context_version and context_version.last_llm_used:
+                            display_name = categorize_llm(context_version.last_llm_used)
+                            llm_times[display_name].append(time_val)
+                except (ValueError, TypeError):
+                    pass
+    
+    result = []
+    for llm_name, times in llm_times.items():
+        if times:
+            result.append({
+                "llm_platform": llm_name,
+                "avg_time_ms": round(sum(times) / len(times), 1),
+                "p95_time_ms": round(sorted(times)[int(len(times) * 0.95)], 1) if times else 0,
+                "count": len(times)
+            })
+    
+    return {"breakdown": sorted(result, key=lambda x: x["avg_time_ms"], reverse=True)}
+
+
+@analytics_router.get("/performance/slow-operations")
+def get_performance_slow_operations(
+    time_range: str = "7d",
+    admin: dict = Depends(get_admin_user),
+    session: Session = Depends(get_session)
+):
+    """Get slow retrieval operations (>1s, >5s)"""
+    start_date, end_date = parse_time_range(time_range)
+    
+    retrieval_events = session.exec(
+        select(AnalyticsEvent)
+        .where(AnalyticsEvent.created_at >= start_date)
+        .where(AnalyticsEvent.created_at < end_date)
+        .where(AnalyticsEvent.event_type == "context_retrieved")
+        .order_by(AnalyticsEvent.created_at.desc())
+        .limit(100)
+    ).all()
+    
+    slow_operations = []
+    for event in retrieval_events:
+        if isinstance(event.event_metadata, dict):
+            retrieval_time = event.event_metadata.get("retrieval_time_ms")
+            box_name = event.event_metadata.get("box_name", "Unknown")
+            if retrieval_time is not None:
+                try:
+                    time_val = float(retrieval_time)
+                    if time_val >= 1000:
+                        slow_operations.append({
+                            "user_id": str(event.user_id)[:8] + "..." if event.user_id else "N/A",
+                            "box_name": box_name,
+                            "retrieval_time_ms": round(time_val, 1),
+                            "created_at": event.created_at.strftime("%Y-%m-%d %H:%M") if event.created_at else ""
+                        })
+                except (ValueError, TypeError):
+                    pass
+    
+    slow_1s = [op for op in slow_operations if op["retrieval_time_ms"] >= 1000 and op["retrieval_time_ms"] < 5000]
+    slow_5s = [op for op in slow_operations if op["retrieval_time_ms"] >= 5000]
+    
+    return {
+        "slow_1s": sorted(slow_1s, key=lambda x: x["retrieval_time_ms"], reverse=True)[:20],
+        "slow_5s": sorted(slow_5s, key=lambda x: x["retrieval_time_ms"], reverse=True)[:20],
+        "total_slow_1s": len(slow_1s),
+        "total_slow_5s": len(slow_5s)
     }
 
 

@@ -18,8 +18,9 @@ function handleTimeRangeChange(pageId) {
             loadFeaturesData();
         } else if (pageId === 'llm') {
             loadLLMData();
+        } else if (pageId === 'performance') {
+            loadPerformanceData();
         }
-        // Add handlers for other pages as needed
     }
 }
 
@@ -36,7 +37,7 @@ function showLoginPage() {
     document.body.innerHTML = `
         <div style="display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #f8f9fa;">
             <div style="background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 100%; max-width: 400px;">
-                <h1 style="text-align: center; margin-bottom: 30px; color: #2c3e50;">memor.ai Admin</h1>
+                <h1 style="text-align: center; margin-bottom: 30px; color: #2c3e50;">RememberMyContext Admin</h1>
                 <form id="login-form" onsubmit="handleLogin(event)">
                     <div style="margin-bottom: 20px;">
                         <label style="display: block; margin-bottom: 5px; color: #34495e; font-weight: 500;">Username</label>
@@ -283,53 +284,475 @@ async function loadFeaturesData() {
 }
 
 
-// Load Monetization Data
-async function loadMonetizationData() {
-    try {
-        const [metrics, segments] = await Promise.all([
-            fetchAPI(`/admin/analytics/monetization/metrics?time_range=30d`),
-            fetchAPI(`/admin/analytics/monetization/user-segments?time_range=${currentTimeRange}`)
-        ]);
 
-        console.log('Monetization data loaded:', {metrics, segments});
-    } catch (error) {
-        console.error('Error loading monetization data:', error);
-    }
-}
-
-// Load Performance Data
 async function loadPerformanceData() {
     try {
-        const metrics = await fetchAPI(`/admin/analytics/performance/metrics`);
-        console.log('Performance data loaded:', metrics);
+        const timeRange = document.getElementById('performance-time-range')?.value || '7d';
+        
+        const [metrics, trends, percentiles, byBox, byLLM, slowOps] = await Promise.all([
+            fetchAPI(`/admin/analytics/performance/metrics?time_range=${timeRange}`),
+            fetchAPI(`/admin/analytics/performance/retrieval-trends?time_range=${timeRange}`),
+            fetchAPI(`/admin/analytics/performance/percentiles?time_range=${timeRange}`),
+            fetchAPI(`/admin/analytics/performance/by-box?time_range=${timeRange}`),
+            fetchAPI(`/admin/analytics/performance/by-llm?time_range=${timeRange}`),
+            fetchAPI(`/admin/analytics/performance/slow-operations?time_range=${timeRange}`)
+        ]);
+        
+        updatePerformanceKPIs(metrics);
+        updatePerformanceCharts(trends, percentiles, byBox, byLLM);
+        updatePerformanceTables(slowOps, byBox, byLLM);
     } catch (error) {
         console.error('Error loading performance data:', error);
     }
 }
 
-// Load Retention Data
-async function loadRetentionData() {
-    try {
-        const metrics = await fetchAPI(`/admin/analytics/retention/metrics`);
-        console.log('Retention data loaded:', metrics);
-    } catch (error) {
-        console.error('Error loading retention data:', error);
+function updatePerformanceKPIs(metrics) {
+    const avgTime = metrics.avg_retrieval_time_ms;
+    const p95Time = metrics.p95_retrieval_time_ms;
+    const uptime = metrics.uptime_percent;
+    const totalRetrievals = metrics.total_retrievals;
+    
+    updateKPI('avg-retrieval-time', avgTime ? `${avgTime}ms` : 'N/A');
+    const avgCard = document.getElementById('performance-avg-retrieval');
+    if (avgCard && avgTime) {
+        const targetEl = document.getElementById('avg-retrieval-target');
+        if (targetEl) {
+            if (avgTime < 200) {
+                avgCard.className = 'kpi-card green';
+                targetEl.className = 'kpi-change positive';
+                targetEl.textContent = `Target: <200ms ✓`;
+            } else {
+                avgCard.className = 'kpi-card red';
+                targetEl.className = 'kpi-change negative';
+                targetEl.textContent = `Target: <200ms ✗`;
+            }
+        }
+    }
+    
+    updateKPI('p95-retrieval-time', p95Time ? `${p95Time}ms` : 'N/A');
+    updateKPI('uptime-percent', uptime ? `${uptime}%` : 'N/A');
+    updateKPI('total-retrievals', totalRetrievals || 0);
+}
+
+function updatePerformanceCharts(trends, percentiles, byBox, byLLM) {
+    if (trends && trends.dates && trends.dates.length > 0) {
+        const ctx = document.getElementById('retrieval-trends-chart');
+        if (ctx) {
+            const existingChart = Chart.getChart(ctx);
+            if (existingChart) {
+                existingChart.destroy();
+            }
+            
+            const avgData = trends.avg_retrieval_time || [];
+            const p95Data = trends.p95_retrieval_time || [];
+            const allValues = [...avgData, ...p95Data].filter(v => v > 0 && v <= 500);
+            
+            if (allValues.length === 0) {
+                allValues.push(0);
+            }
+            
+            const maxValue = Math.max(...allValues);
+            const minValue = Math.min(...allValues);
+            
+            let yMax = 500;
+            if (maxValue > 0) {
+                if (maxValue <= 10) {
+                    yMax = 15;
+                } else if (maxValue <= 50) {
+                    yMax = 60;
+                } else if (maxValue <= 100) {
+                    yMax = 120;
+                } else if (maxValue <= 200) {
+                    yMax = 250;
+                } else if (maxValue <= 500) {
+                    yMax = 500;
+                } else {
+                    yMax = 500;
+                }
+            }
+            
+            const stepSize = yMax <= 15 ? 2 : yMax <= 60 ? 10 : yMax <= 120 ? 20 : yMax <= 250 ? 50 : 100;
+            
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: trends.dates,
+                    datasets: [
+                        {
+                            label: 'Avg Retrieval Time (ms)',
+                            data: avgData.map(v => v > 500 ? null : v),
+                            borderColor: 'rgb(75, 192, 192)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            tension: 0.1
+                        },
+                        {
+                            label: 'P95 Retrieval Time (ms)',
+                            data: p95Data.map(v => v > 500 ? null : v),
+                            borderColor: 'rgb(255, 99, 132)',
+                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                            tension: 0.1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true
+                        },
+                        annotation: yMax >= 200 ? {
+                            annotations: {
+                                targetLine: {
+                                    type: 'line',
+                                    yMin: 200,
+                                    yMax: 200,
+                                    borderColor: 'rgb(255, 99, 132)',
+                                    borderWidth: 2,
+                                    borderDash: [5, 5],
+                                    label: {
+                                        content: 'Target: 200ms',
+                                        enabled: true,
+                                        position: 'end',
+                                        backgroundColor: 'rgba(255, 99, 132, 0.8)',
+                                        color: 'white',
+                                        padding: 4,
+                                        font: {
+                                            size: 11
+                                        }
+                                    }
+                                }
+                            }
+                        } : {}
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: yMax,
+                            min: 0,
+                            ticks: {
+                                stepSize: stepSize,
+                                maxTicksLimit: 8,
+                                callback: function(value) {
+                                    return value.toFixed(1) + 'ms';
+                                }
+                            },
+                            grid: {
+                                color: function(context) {
+                                    if (yMax >= 200 && context.tick.value === 200) {
+                                        return 'rgba(255, 99, 132, 0.5)';
+                                    }
+                                    return 'rgba(0, 0, 0, 0.1)';
+                                },
+                                lineWidth: function(context) {
+                                    if (yMax >= 200 && context.tick.value === 200) {
+                                        return 2;
+                                    }
+                                    return 1;
+                                }
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
+    
+    if (percentiles && (percentiles.p50 || percentiles.p95 || percentiles.p99)) {
+        const ctx = document.getElementById('percentiles-chart');
+        if (ctx) {
+            const existingChart = Chart.getChart(ctx);
+            if (existingChart) {
+                existingChart.destroy();
+            }
+            
+            const percentileValues = [
+                Math.min(percentiles.p50 || 0, 500),
+                Math.min(percentiles.p95 || 0, 500),
+                Math.min(percentiles.p99 || 0, 500),
+                Math.min(percentiles.min || 0, 500),
+                Math.min(percentiles.max || 0, 500)
+            ];
+            const maxPercentile = Math.max(...percentileValues, 1);
+            
+            let yMaxPercentile = 500;
+            if (maxPercentile > 0) {
+                if (maxPercentile <= 10) {
+                    yMaxPercentile = 15;
+                } else if (maxPercentile <= 50) {
+                    yMaxPercentile = 60;
+                } else if (maxPercentile <= 100) {
+                    yMaxPercentile = 120;
+                } else if (maxPercentile <= 200) {
+                    yMaxPercentile = 250;
+                } else if (maxPercentile <= 500) {
+                    yMaxPercentile = 500;
+                } else {
+                    yMaxPercentile = 500;
+                }
+            }
+            
+            const stepSizePercentile = yMaxPercentile <= 15 ? 2 : yMaxPercentile <= 60 ? 10 : yMaxPercentile <= 120 ? 20 : yMaxPercentile <= 250 ? 50 : 100;
+            
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['P50', 'P95', 'P99', 'Min', 'Max'],
+                    datasets: [{
+                        label: 'Retrieval Time (ms)',
+                        data: percentileValues,
+                        backgroundColor: [
+                            'rgba(75, 192, 192, 0.6)',
+                            'rgba(255, 99, 132, 0.6)',
+                            'rgba(255, 159, 64, 0.6)',
+                            'rgba(54, 162, 235, 0.6)',
+                            'rgba(153, 102, 255, 0.6)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: yMaxPercentile,
+                            min: 0,
+                            ticks: {
+                                stepSize: stepSizePercentile,
+                                maxTicksLimit: 8,
+                                callback: function(value) {
+                                    return value.toFixed(1) + 'ms';
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
+    
+    if (byBox && byBox.breakdown && byBox.breakdown.length > 0) {
+        const ctx = document.getElementById('performance-by-box-chart');
+        if (ctx) {
+            const existingChart = Chart.getChart(ctx);
+            if (existingChart) {
+                existingChart.destroy();
+            }
+            
+            const topBoxes = byBox.breakdown.slice(0, 10);
+            const values = topBoxes.map(b => Math.min(b.avg_time_ms, 500));
+            const maxValue = Math.max(...values, 1);
+            
+            let yMax = 500;
+            if (maxValue > 0) {
+                if (maxValue <= 10) {
+                    yMax = 15;
+                } else if (maxValue <= 50) {
+                    yMax = 60;
+                } else if (maxValue <= 100) {
+                    yMax = 120;
+                } else if (maxValue <= 200) {
+                    yMax = 250;
+                } else if (maxValue <= 500) {
+                    yMax = 500;
+                } else {
+                    yMax = 500;
+                }
+            }
+            
+            const stepSize = yMax <= 15 ? 2 : yMax <= 60 ? 10 : yMax <= 120 ? 20 : yMax <= 250 ? 50 : 100;
+            
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: topBoxes.map(b => b.box_name),
+                    datasets: [{
+                        label: 'Avg Time (ms)',
+                        data: values,
+                        backgroundColor: 'rgba(54, 162, 235, 0.6)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: yMax,
+                            min: 0,
+                            ticks: {
+                                stepSize: stepSize,
+                                maxTicksLimit: 8,
+                                callback: function(value) {
+                                    return value.toFixed(1) + 'ms';
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
+    
+    if (byLLM && byLLM.breakdown && byLLM.breakdown.length > 0) {
+        const ctx = document.getElementById('performance-by-llm-chart');
+        if (ctx) {
+            const existingChart = Chart.getChart(ctx);
+            if (existingChart) {
+                existingChart.destroy();
+            }
+            
+            const values = byLLM.breakdown.map(l => Math.min(l.avg_time_ms, 500));
+            const maxValue = Math.max(...values, 1);
+            
+            let yMax = 500;
+            if (maxValue > 0) {
+                if (maxValue <= 10) {
+                    yMax = 15;
+                } else if (maxValue <= 50) {
+                    yMax = 60;
+                } else if (maxValue <= 100) {
+                    yMax = 120;
+                } else if (maxValue <= 200) {
+                    yMax = 250;
+                } else if (maxValue <= 500) {
+                    yMax = 500;
+                } else {
+                    yMax = 500;
+                }
+            }
+            
+            const stepSize = yMax <= 15 ? 2 : yMax <= 60 ? 10 : yMax <= 120 ? 20 : yMax <= 250 ? 50 : 100;
+            
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: byLLM.breakdown.map(l => l.llm_platform),
+                    datasets: [{
+                        label: 'Avg Time (ms)',
+                        data: values,
+                        backgroundColor: 'rgba(153, 102, 255, 0.6)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: yMax,
+                            min: 0,
+                            ticks: {
+                                stepSize: stepSize,
+                                maxTicksLimit: 8,
+                                callback: function(value) {
+                                    return value.toFixed(1) + 'ms';
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
     }
 }
 
-// Load Content Data
-async function loadContentData() {
-    try {
-        const [metrics, boxPerformance] = await Promise.all([
-            fetchAPI(`/admin/analytics/content/metrics?time_range=30d`),
-            fetchAPI(`/admin/analytics/content/box-performance`)
-        ]);
-
-        console.log('Content data loaded:', {metrics, boxPerformance});
-    } catch (error) {
-        console.error('Error loading content data:', error);
+function updatePerformanceTables(slowOps, byBox, byLLM) {
+    const slowTbody = document.getElementById('slow-operations-tbody');
+    if (slowTbody && slowOps) {
+        const allSlow = [...(slowOps.slow_1s || []), ...(slowOps.slow_5s || [])].slice(0, 20);
+        if (allSlow.length > 0) {
+            slowTbody.innerHTML = allSlow.map(op => `
+                <tr>
+                    <td>${op.user_id}</td>
+                    <td>${op.box_name}</td>
+                    <td>${op.retrieval_time_ms}ms</td>
+                    <td>${op.created_at}</td>
+                </tr>
+            `).join('');
+        } else {
+            slowTbody.innerHTML = '<tr><td colspan="4">No slow operations found</td></tr>';
+        }
+    }
+    
+    const boxTbody = document.getElementById('performance-box-tbody');
+    if (boxTbody && byBox && byBox.breakdown) {
+        if (byBox.breakdown.length > 0) {
+            boxTbody.innerHTML = byBox.breakdown.slice(0, 10).map(b => `
+                <tr>
+                    <td>${b.box_name}</td>
+                    <td>${b.avg_time_ms}</td>
+                    <td>${b.p95_time_ms}</td>
+                    <td>${b.count}</td>
+                </tr>
+            `).join('');
+        } else {
+            boxTbody.innerHTML = '<tr><td colspan="4">No data available</td></tr>';
+        }
+    }
+    
+    const llmTbody = document.getElementById('performance-llm-tbody');
+    if (llmTbody && byLLM && byLLM.breakdown) {
+        if (byLLM.breakdown.length > 0) {
+            llmTbody.innerHTML = byLLM.breakdown.map(l => `
+                <tr>
+                    <td>${l.llm_platform}</td>
+                    <td>${l.avg_time_ms}</td>
+                    <td>${l.p95_time_ms}</td>
+                    <td>${l.count}</td>
+                </tr>
+            `).join('');
+        } else {
+            llmTbody.innerHTML = '<tr><td colspan="4">No data available</td></tr>';
+        }
     }
 }
+
 
 // Chart instances storage
 const chartInstances = {};
@@ -412,6 +835,14 @@ function createBarChart(canvasId, data, options = {}) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            layout: {
+                padding: {
+                    top: 15,
+                    bottom: 15,
+                    left: 10,
+                    right: 10
+                }
+            },
             plugins: {
                 legend: {
                     position: 'top',
@@ -431,11 +862,17 @@ function createBarChart(canvasId, data, options = {}) {
                     beginAtZero: true,
                     grid: {
                         color: 'rgba(0,0,0,0.05)'
+                    },
+                    ticks: {
+                        padding: 8
                     }
                 },
                 x: {
                     grid: {
                         display: false
+                    },
+                    ticks: {
+                        padding: 8
                     }
                 }
             },
@@ -490,6 +927,14 @@ function createPieChart(canvasId, data, options = {}) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            layout: {
+                padding: {
+                    top: 10,
+                    bottom: 10,
+                    left: 10,
+                    right: 10
+                }
+            },
             plugins: {
                 legend: {
                     position: 'right',
@@ -585,35 +1030,52 @@ async function updateOverviewCharts(timeline, boxDist, llmDist) {
         
         // Box Distribution Chart
         if (boxDist && boxDist.boxes) {
-        const boxes = Object.entries(boxDist.boxes);
-        createPieChart('box-distribution-chart', {
-            labels: boxes.map(([name]) => name),
-            datasets: [{
-                data: boxes.map(([, data]) => data.count || 0),
-                backgroundColor: [
-                    'rgba(52, 152, 219, 0.8)',
-                    'rgba(46, 204, 113, 0.8)',
-                    'rgba(241, 196, 15, 0.8)',
-                    'rgba(231, 76, 60, 0.8)',
-                    'rgba(155, 89, 182, 0.8)'
-                ]
-            }]
-        });
+            const boxes = Object.entries(boxDist.boxes);
+            const boxData = boxes.map(([, data]) => data.count || 0);
+            const total = boxData.reduce((a, b) => a + b, 0);
+            if (total > 0) {
+                const canvas = document.getElementById('box-distribution-chart');
+                if (canvas) {
+                    console.log('Creating Box Distribution pie chart with data:', { boxes: boxes.map(([name]) => name), boxData, total });
+                    createPieChart('box-distribution-chart', {
+                        labels: boxes.map(([name]) => name),
+                        datasets: [{
+                            data: boxData,
+                            backgroundColor: [
+                                'rgba(52, 152, 219, 0.8)',
+                                'rgba(46, 204, 113, 0.8)',
+                                'rgba(241, 196, 15, 0.8)',
+                                'rgba(231, 76, 60, 0.8)',
+                                'rgba(155, 89, 182, 0.8)'
+                            ]
+                        }]
+                    });
+                } else {
+                    console.warn('box-distribution-chart canvas not found');
+                }
+            } else {
+                console.warn('Box Distribution: No data to display', { boxDist, boxes, boxData, total });
+            }
         }
         
         // LLM Distribution Chart
         if (llmDist && llmDist.distribution) {
-        const dist = Object.entries(llmDist.distribution).filter(([name]) => name.toLowerCase() !== 'other');
-        if (dist.length > 0) {
-            createBarChart('llm-distribution-chart', {
-                labels: dist.map(([name]) => name),
-                datasets: [{
-                    label: 'Usage',
-                    data: dist.map(([, data]) => data.count || 0),
-                    backgroundColor: 'rgba(52, 152, 219, 0.8)'
-                }]
-            });
-        }
+            const dist = Object.entries(llmDist.distribution).filter(([name]) => name.toLowerCase() !== 'other');
+            if (dist.length > 0) {
+                const canvas = document.getElementById('llm-distribution-chart');
+                if (canvas) {
+                    createBarChart('llm-distribution-chart', {
+                        labels: dist.map(([name]) => name),
+                        datasets: [{
+                            label: 'Usage',
+                            data: dist.map(([, data]) => data.count || 0),
+                            backgroundColor: 'rgba(52, 152, 219, 0.8)'
+                        }]
+                    });
+                } else {
+                    console.warn('llm-distribution-chart canvas not found');
+                }
+            }
         }
     });
 }
@@ -759,7 +1221,10 @@ async function updateEngagementCharts(copyActivity, boxUsage, onboardingFunnel) 
 async function updateLLMCharts(distribution, platforms, usageTrends, diversity) {
     waitForChartJS(() => {
         // LLM Platform Distribution (pie chart)
+        console.log('updateLLMCharts called with distribution:', distribution);
         if (distribution) {
+            // API returns direct object like {chatgpt: {percentage: 52.1}, claude: {percentage: 47.9}}
+            const dist = distribution.distribution || distribution;
             const labels = [];
             const data = [];
             const colors = {
@@ -771,22 +1236,38 @@ async function updateLLMCharts(distribution, platforms, usageTrends, diversity) 
             };
             
             // Filter out "others" and build chart data
-            for (const [llm, data_obj] of Object.entries(distribution)) {
-                if (llm !== 'others') {  // Exclude "others" as per user request
+            // API returns percentage, but we need count for pie chart
+            // We'll use percentage as the data value (pie charts work with percentages too)
+            for (const [llm, data_obj] of Object.entries(dist)) {
+                if (llm !== 'others' && llm !== 'Others') {  // Exclude "others" as per user request
                     labels.push(llm.charAt(0).toUpperCase() + llm.slice(1));
-                    data.push(data_obj.percentage || 0);
+                    // API returns {percentage: X}, but pie chart needs actual values
+                    // We'll use percentage as the value (Chart.js will normalize it)
+                    const value = data_obj.percentage || data_obj.count || 0;
+                    data.push(value);
                 }
             }
             
-            if (labels.length > 0) {
-                createPieChart('llm-platform-chart', {
-                    labels: labels,
-                    datasets: [{
-                        data: data,
-                        backgroundColor: Object.values(colors).slice(0, labels.length)
-                    }]
-                });
+            const total = data.reduce((a, b) => a + b, 0);
+            if (labels.length > 0 && total > 0) {
+                const canvas = document.getElementById('llm-platform-chart');
+                if (canvas) {
+                    console.log('Creating LLM Platform pie chart with data:', { labels, data, total });
+                    createPieChart('llm-platform-chart', {
+                        labels: labels,
+                        datasets: [{
+                            data: data,
+                            backgroundColor: Object.values(colors).slice(0, labels.length)
+                        }]
+                    });
+                } else {
+                    console.warn('llm-platform-chart canvas not found');
+                }
+            } else {
+                console.warn('LLM Platform Distribution: No data to display', { labels, data, total, distribution, dist });
             }
+        } else {
+            console.warn('LLM Platform Distribution: Invalid distribution data', distribution);
         }
         
         // LLM Usage Trends (stacked area chart)
