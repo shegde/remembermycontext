@@ -277,7 +277,6 @@ async function loadFeaturesData() {
         // Update charts
         await updateFeaturesCharts(boxesPerUser, versionDist, adoption, adoptionTimeline);
 
-        console.log('Features data loaded:', {metrics, adoption, boxesPerUser, versionDist, boxRatio, powerUserStats, adoptionTimeline});
     } catch (error) {
         console.error('Error loading features data:', error);
     }
@@ -1036,7 +1035,6 @@ async function updateOverviewCharts(timeline, boxDist, llmDist) {
             if (total > 0) {
                 const canvas = document.getElementById('box-distribution-chart');
                 if (canvas) {
-                    console.log('Creating Box Distribution pie chart with data:', { boxes: boxes.map(([name]) => name), boxData, total });
                     createPieChart('box-distribution-chart', {
                         labels: boxes.map(([name]) => name),
                         datasets: [{
@@ -1221,7 +1219,6 @@ async function updateEngagementCharts(copyActivity, boxUsage, onboardingFunnel) 
 async function updateLLMCharts(distribution, platforms, usageTrends, diversity) {
     waitForChartJS(() => {
         // LLM Platform Distribution (pie chart)
-        console.log('updateLLMCharts called with distribution:', distribution);
         if (distribution) {
             // API returns direct object like {chatgpt: {percentage: 52.1}, claude: {percentage: 47.9}}
             const dist = distribution.distribution || distribution;
@@ -1252,7 +1249,6 @@ async function updateLLMCharts(distribution, platforms, usageTrends, diversity) 
             if (labels.length > 0 && total > 0) {
                 const canvas = document.getElementById('llm-platform-chart');
                 if (canvas) {
-                    console.log('Creating LLM Platform pie chart with data:', { labels, data, total });
                     createPieChart('llm-platform-chart', {
                         labels: labels,
                         datasets: [{
@@ -1491,7 +1487,6 @@ async function loadOverviewData() {
                         <span class="metric-item-value" style="color: #2ecc71;">${uptime ? uptime + '%' : 'N/A'}</span>
                     </div>
                 `;
-                console.log('Performance Health:', { retrievalTime, uptime, totalRetrievals });
             }
         }
         
@@ -1510,7 +1505,6 @@ async function loadOverviewData() {
         // Update charts
         await updateOverviewCharts(timeline, boxDist, llmDist);
 
-        console.log('Overview data loaded:', {kpis, insights, lifecycle, perfHealth});
     } catch (error) {
         console.error('Error loading overview data:', error);
     }
@@ -1606,7 +1600,6 @@ async function loadAcquisitionData() {
         // Update charts
         await updateAcquisitionCharts(timeline, funnel, patterns);
 
-        console.log('Acquisition data loaded:', {metrics, funnel, churn, patterns});
     } catch (error) {
         console.error('Error loading acquisition data:', error);
     }
@@ -1755,7 +1748,6 @@ async function loadEngagementData() {
         // Update charts
         await updateEngagementCharts(copyActivity, boxUsage, onboardingFunnel);
 
-        console.log('Engagement data loaded:', {metrics, boxUsage, powerUsers, versionStats, onboardingFunnel});
     } catch (error) {
         console.error('Error loading engagement data:', error);
     }
@@ -1857,7 +1849,6 @@ async function loadLLMData() {
         // Update charts
         await updateLLMCharts(distribution, platforms, usageTrends, diversity);
 
-        console.log('LLM data loaded:', {metrics, distribution, platforms, usageTrends, platformDetails, diversity});
     } catch (error) {
         console.error('Error loading LLM data:', error);
     }

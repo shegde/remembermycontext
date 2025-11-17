@@ -2088,6 +2088,10 @@ def get_db_view(
     session: Session = Depends(get_session)
 ):
     """Get paginated database view for admin"""
+    if page < 1:
+        page = 1
+    if page_size < 1 or page_size > 100:
+        page_size = 10
     offset = (page - 1) * page_size
     
     if table_name == "users":
