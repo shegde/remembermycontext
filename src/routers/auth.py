@@ -49,7 +49,17 @@ def register(request: Request, user_data: UserRegister, session: Session = Depen
         )
     
     user = create_user(session, user_data.email, user_data.password)
-    return {"ok": True, "user_id": str(user.id)}
+    
+    # If email verification is required, inform user
+    if settings.EMAIL_VERIFICATION_REQUIRED and not user.email_verified:
+        return {
+            "ok": True,
+            "user_id": str(user.id),
+            "message": "Account created! Please check your email to verify your account before logging in.",
+            "email_verification_required": True
+        }
+    
+    return {"ok": True, "user_id": str(user.id), "email_verification_required": False}
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -182,14 +192,15 @@ def resend_verification(
             "message": "Email is already verified"
         }
     
+    # Send verification email
     from ..services.email import email_service
     if user.verification_token:
         email_service.send_verification_email(user.email, user.verification_token)
+        logger.info(f"Verification email resent to {user.email}")
     
-    logger.info(f"Verification token regenerated for {user.email}")
     return {
         "ok": True,
-        "message": "Verification email sent. Please check your inbox."
+        "message": "If an account exists with that email, a verification link has been sent"
     }
 
 

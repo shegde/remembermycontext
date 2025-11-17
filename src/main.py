@@ -8,13 +8,14 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from .database import create_db_and_tables
-from .routers import auth_router, context_router, feedback_router, analytics_router, upgrade_router, onboarding_router
+from .routers import auth_router, context_router, feedback_router, analytics_router, upgrade_router, onboarding_router, admin_router
 from .config import settings
 from .logging_config import logger
 from .middleware import limiter
 
 BASE_DIR = Path(__file__).parent
 DASHBOARD_DIR = BASE_DIR / "dashboard"
+ADMIN_DIR = BASE_DIR / "admin"
 
 
 @asynccontextmanager
@@ -33,6 +34,13 @@ async def lifespan(app: FastAPI):
     if crypto_service is None:
         logger.error("Crypto service failed to initialize")
         raise RuntimeError("Crypto service initialization failed")
+    
+    # Ensure admin user exists
+    from .crud.admin import ensure_admin_exists
+    from .database import engine
+    from sqlmodel import Session
+    with Session(engine) as session:
+        ensure_admin_exists(session, settings.ADMIN_USERNAME, settings.ADMIN_PASSWORD)
     
     logger.info("Server started successfully")
     yield
@@ -81,11 +89,17 @@ app.include_router(feedback_router, prefix=settings.API_PREFIX)
 app.include_router(analytics_router, prefix=settings.API_PREFIX)
 app.include_router(upgrade_router, prefix=settings.API_PREFIX)
 app.include_router(onboarding_router, prefix=settings.API_PREFIX)
+app.include_router(admin_router, prefix=settings.API_PREFIX)
 
 try:
     app.mount("/static", StaticFiles(directory=str(DASHBOARD_DIR)), name="static")
 except RuntimeError:
     logger.warning("Dashboard directory not found, skipping static files mount")
+
+try:
+    app.mount("/admin-static", StaticFiles(directory=str(ADMIN_DIR)), name="admin-static")
+except RuntimeError:
+    logger.warning("Admin directory not found, skipping admin static files mount")
 
 
 @app.get("/")
@@ -115,5 +129,18 @@ def serve_dashboard():
         return JSONResponse(
             status_code=404,
             content={"message": "Dashboard not found"}
+        )
+
+
+@app.get("/admin")
+def serve_admin():
+    admin_path = ADMIN_DIR / "index.html"
+    if admin_path.exists():
+        return FileResponse(str(admin_path))
+    else:
+        logger.warning(f"Admin panel file not found at {admin_path}")
+        return JSONResponse(
+            status_code=404,
+            content={"message": "Admin panel not found"}
         )
 

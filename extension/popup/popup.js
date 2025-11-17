@@ -204,27 +204,36 @@ async function handleSignup() {
         
         if (response.ok) {
             const data = await response.json();
-            showToast('Account created! Logging you in...');
             
-            try {
-                const loginResponse = await fetch(`${API_BASE}/auth/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password })
-                });
-                
-                if (loginResponse.ok) {
-                    const loginData = await loginResponse.json();
-                    currentUser = { email, access_token: loginData.access_token };
-                    await chrome.storage.local.set({ user: currentUser });
-                    showScreen('onboarding-1');
-                } else {
+            // Check if email verification is required
+            if (data.email_verification_required) {
+                showToast('Account created! Please check your email to verify your account.', 'success');
+                showScreen('login');
+                document.getElementById('login-email').value = email;
+            } else {
+                // Try to login if verification not required
+                try {
+                    const loginResponse = await fetch(`${API_BASE}/auth/login`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email, password })
+                    });
+                    
+                    if (loginResponse.ok) {
+                        const loginData = await loginResponse.json();
+                        currentUser = { email, access_token: loginData.access_token };
+                        await chrome.storage.local.set({ user: currentUser });
+                        showScreen('onboarding-1');
+                    } else {
+                        showToast('Account created! Please log in.', 'success');
+                        showScreen('login');
+                        document.getElementById('login-email').value = email;
+                    }
+                } catch (error) {
+                    showToast('Account created! Please log in.', 'success');
                     showScreen('login');
                     document.getElementById('login-email').value = email;
                 }
-            } catch (error) {
-                showScreen('login');
-                document.getElementById('login-email').value = email;
             }
         } else {
             const errorMsg = await parseApiError(response, 'Registration failed');
@@ -510,17 +519,20 @@ async function insertVersion(boxName, versionNumber) {
                 body: JSON.stringify({ site: currentSite, llm_name: llmName })
             });
             
-            await fetch(`${API_BASE}/analytics`, {
-                method: 'POST',
-                headers: { 
-                    'Authorization': `Bearer ${currentUser.access_token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ 
-                    event_type: 'insert',
-                    metadata: { box_name: boxName, version_number: versionNumber, site: currentSite }
-                })
-            });
+            // Only log insert event if on an allowed LLM site
+            if (llmName) {
+                await fetch(`${API_BASE}/analytics`, {
+                    method: 'POST',
+                    headers: { 
+                        'Authorization': `Bearer ${currentUser.access_token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                        event_type: 'insert',
+                        metadata: { box_name: boxName, version_number: versionNumber, site: currentSite, llm: llmName }
+                    })
+                });
+            }
         }
     } catch (error) {
         showToast('Failed to insert', 'error');
@@ -636,6 +648,19 @@ async function handleCompleteOnboarding() {
     if (!currentUser || !currentUser.access_token) return;
     
     try {
+        // Track onboarding step completion
+        await fetch(`${API_BASE}/analytics`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${currentUser.access_token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                event_type: 'onboarding_step_completed',
+                metadata: {step: 'final'}
+            })
+        }).catch(() => {});
+        
         const response = await fetch(`${API_BASE}/onboarding/complete`, {
             method: 'POST',
             headers: { 
@@ -661,6 +686,19 @@ async function handleSkipOnboarding() {
     }
     
     try {
+        // Track onboarding skipped
+        await fetch(`${API_BASE}/analytics`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${currentUser.access_token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                event_type: 'onboarding_skipped',
+                metadata: {}
+            })
+        }).catch(() => {});
+        
         const response = await fetch(`${API_BASE}/onboarding/complete`, {
             method: 'POST',
             headers: { 

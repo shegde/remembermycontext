@@ -9,3 +9,4 @@ logs/
 uv.lock
 dump/
 logo/
+docs/*

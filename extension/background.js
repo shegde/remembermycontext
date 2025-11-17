@@ -1,3 +1,30 @@
+// Track installation
+chrome.runtime.onInstalled.addListener((details) => {
+  if (details.reason === 'install' || details.reason === 'update') {
+    // Track installation event
+    chrome.storage.local.get(['apiBase'], (result) => {
+      const API_BASE = result.apiBase || 'https://remembermycontext-api.onrender.com/api/v1';
+      
+      fetch(`${API_BASE}/analytics`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          event_type: 'extension_installed',
+          metadata: {
+            reason: details.reason,
+            version: chrome.runtime.getManifest().version,
+            timestamp: new Date().toISOString()
+          }
+        })
+      }).catch(error => {
+        console.log('Failed to track installation:', error);
+      });
+    });
+  }
+});
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "insertText") {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {

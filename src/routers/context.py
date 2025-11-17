@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session
 from typing import List
+import time
 
 from ..database import get_session
 from ..crud import (
@@ -11,6 +12,7 @@ from ..crud import (
     mark_version_used
 )
 from ..services import get_current_user, crypto_service
+from ..services.analytics import create_analytics_event
 from ..models import User
 from ..schemas import (
     ContextCreate,
@@ -73,6 +75,7 @@ def get_version(
     current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session)
 ):
+    """Get context version with retrieval time tracking"""
     if version_number < 0:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -81,6 +84,8 @@ def get_version(
                 "error_code": ErrorCode.VALIDATION_ERROR
             }
         )
+    
+    start_time = time.time()
     version = get_context_version(session, current_user.id, box_name.value, version_number)
     if not version:
         raise HTTPException(
@@ -90,6 +95,22 @@ def get_version(
                 "error_code": ErrorCode.NOT_FOUND
             }
         )
+    
+    retrieval_time_ms = round((time.time() - start_time) * 1000, 2)
+    
+    try:
+        create_analytics_event(
+            session,
+            current_user.id,
+            "context_retrieved",
+            {
+                "box_name": box_name.value,
+                "version_number": version_number,
+                "retrieval_time_ms": retrieval_time_ms
+            }
+        )
+    except Exception as e:
+        logger.warning(f"Failed to log retrieval event: {str(e)}")
     
     return {
         "ciphertext": version.ciphertext,

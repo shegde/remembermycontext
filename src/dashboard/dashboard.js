@@ -39,6 +39,24 @@ async function initializeDashboard() {
         if (response.ok) {
             currentUser = { access_token: token };
             hideLoginForm();
+            
+            // Track dashboard visit
+            try {
+                await fetch(`${API_BASE}/analytics`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        event_type: 'dashboard_visited',
+                        metadata: {timestamp: new Date().toISOString()}
+                    })
+                });
+            } catch (e) {
+                // Silently fail
+            }
+            
             await loadDashboard();
         } else {
             localStorage.removeItem('access_token');

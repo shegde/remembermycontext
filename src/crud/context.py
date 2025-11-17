@@ -76,7 +76,9 @@ def mark_version_used(
         if version:
             version.uses_count += 1
             version.last_used_at = datetime.now(timezone.utc)
-            if llm_name:
+            # Only set last_llm_used if llm_name is provided and not None/empty
+            # This ensures we only log valid LLM sites
+            if llm_name and llm_name.strip():
                 version.last_llm_used = llm_name
             session.add(version)
             session.commit()
