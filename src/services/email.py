@@ -1,3 +1,4 @@
+import os
 import resend
 from ..config import settings
 from ..logging_config import logger
@@ -42,8 +43,19 @@ class EmailService:
             </html>
             """
             
+            # Use Resend's default domain if custom domain not verified
+            # Resend allows onboarding@resend.dev for testing without domain verification
+            from_email = settings.FROM_EMAIL
+            if "remembermycontext.com" in from_email.lower():
+                # Check if we should use Resend's default domain for testing
+                # You can set USE_RESEND_DEFAULT_DOMAIN=true in .env to use onboarding@resend.dev
+                use_default = os.getenv("USE_RESEND_DEFAULT_DOMAIN", "false").lower() == "true"
+                if use_default:
+                    from_email = "onboarding@resend.dev"
+                    logger.info(f"Using Resend default domain for testing: {from_email}")
+            
             params = {
-                "from": settings.FROM_EMAIL,
+                "from": from_email,
                 "to": [email],
                 "subject": "Verify Your Email - RememberMyContext",
                 "html": html_content,
@@ -53,7 +65,13 @@ class EmailService:
             logger.info(f"Verification email sent to {email}: {email_response}")
             return True
         except Exception as e:
-            logger.error(f"Failed to send verification email to {email}: {str(e)}")
+            error_msg = str(e)
+            logger.error(f"Failed to send verification email to {email}: {error_msg}")
+            
+            # If domain not verified, suggest using Resend default domain
+            if "domain is not verified" in error_msg.lower():
+                logger.warning("Domain not verified in Resend. Set USE_RESEND_DEFAULT_DOMAIN=true in .env to use onboarding@resend.dev for testing")
+            
             return False
     
     @staticmethod
@@ -92,8 +110,16 @@ class EmailService:
             </html>
             """
             
+            # Use Resend's default domain if custom domain not verified
+            from_email = settings.FROM_EMAIL
+            if "remembermycontext.com" in from_email.lower():
+                use_default = os.getenv("USE_RESEND_DEFAULT_DOMAIN", "false").lower() == "true"
+                if use_default:
+                    from_email = "onboarding@resend.dev"
+                    logger.info(f"Using Resend default domain for testing: {from_email}")
+            
             params = {
-                "from": settings.FROM_EMAIL,
+                "from": from_email,
                 "to": [email],
                 "subject": "Reset Your Password - RememberMyContext",
                 "html": html_content,
@@ -103,7 +129,13 @@ class EmailService:
             logger.info(f"Password reset email sent to {email}: {email_response}")
             return True
         except Exception as e:
-            logger.error(f"Failed to send password reset email to {email}: {str(e)}")
+            error_msg = str(e)
+            logger.error(f"Failed to send password reset email to {email}: {error_msg}")
+            
+            # If domain not verified, suggest using Resend default domain
+            if "domain is not verified" in error_msg.lower():
+                logger.warning("Domain not verified in Resend. Set USE_RESEND_DEFAULT_DOMAIN=true in .env to use onboarding@resend.dev for testing")
+            
             return False
 
 

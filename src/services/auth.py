@@ -79,3 +79,35 @@ def get_current_user(
     
     return user
 
+
+def get_admin_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+) -> dict:
+    """Dependency to validate admin token"""
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail={
+            "message": "Admin authentication required",
+            "error_code": ErrorCode.UNAUTHORIZED
+        },
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
+    token = credentials.credentials
+    payload = verify_token(token)
+    if payload is None:
+        raise credentials_exception
+    
+    # Check if token has admin flag
+    is_admin = payload.get("is_admin", False)
+    if not is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "message": "Admin access required",
+                "error_code": ErrorCode.UNAUTHORIZED
+            }
+        )
+    
+    return payload
+

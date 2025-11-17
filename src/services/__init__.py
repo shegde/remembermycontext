@@ -3,7 +3,8 @@ from .auth import (
     get_password_hash,
     create_access_token,
     verify_token,
-    get_current_user
+    get_current_user,
+    get_admin_user
 )
 from .crypto import crypto_service
 from .analytics import create_analytics_event, get_analytics_events
@@ -15,6 +16,7 @@ __all__ = [
     "create_access_token",
     "verify_token",
     "get_current_user",
+    "get_admin_user",
     "crypto_service",
     "create_analytics_event",
     "get_analytics_events",

@@ -1,0 +1,1832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>memor.ai Admin Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            background: #f8f9fa;
+        }
+        
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 240px;
+            height: 100vh;
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .sidebar h1 {
+            font-size: 20px;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #34495e;
+        }
+        
+        .nav-item {
+            padding: 12px 15px;
+            margin-bottom: 5px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+        
+        .nav-item:hover {
+            background: #34495e;
+        }
+        
+        .nav-item.active {
+            background: #3498db;
+        }
+        
+        .main-content {
+            margin-left: 240px;
+            padding: 30px;
+            min-height: 100vh;
+        }
+        
+        .page {
+            display: none;
+        }
+        
+        .page.active {
+            display: block;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h2 {
+            font-size: 28px;
+            color: #2c3e50;
+        }
+        
+        .date-filter {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .date-filter select {
+            padding: 8px 15px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        
+        /* KPI Cards */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .kpi-card {
+            background: white;
+            padding: 24px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+            border-left: 4px solid #3498db;
+        }
+        
+        .kpi-card.green { border-left-color: #2ecc71; }
+        .kpi-card.orange { border-left-color: #f39c12; }
+        .kpi-card.red { border-left-color: #e74c3c; }
+        .kpi-card.purple { border-left-color: #9b59b6; }
+        
+        .kpi-label {
+            font-size: 13px;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+        
+        .kpi-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 8px;
+        }
+        
+        .kpi-change {
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .kpi-change.positive { color: #2ecc71; }
+        .kpi-change.negative { color: #e74c3c; }
+        
+        /* Chart Container */
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .chart-container {
+            background: white;
+            padding: 24px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+        }
+        
+        .chart-container.full-width {
+            grid-column: 1 / -1;
+        }
+        
+        .chart-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+        
+        .chart-placeholder {
+            height: 280px;
+            background: white;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            font-size: 14px;
+            position: relative;
+            overflow: hidden;
+            padding: 10px;
+        }
+        
+        .chart-placeholder canvas {
+            max-height: 260px !important;
+            max-width: 100% !important;
+            height: 260px !important;
+        }
+        
+        .chart-placeholder::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                45deg,
+                rgba(255,255,255,0.05),
+                rgba(255,255,255,0.05) 10px,
+                transparent 10px,
+                transparent 20px
+            );
+        }
+        
+        /* Table Styles */
+        .table-container {
+            background: white;
+            padding: 24px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+            overflow-x: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th {
+            background: #f8f9fa;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #2c3e50;
+            border-bottom: 2px solid #dee2e6;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #ecf0f1;
+            color: #34495e;
+        }
+        
+        tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .metric-value {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .trend-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        
+        .trend-badge.up {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .trend-badge.down {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .trend-badge.stable {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        
+        /* Progress Bar */
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #ecf0f1;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: #3498db;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+        
+        .progress-fill.green { background: #2ecc71; }
+        .progress-fill.orange { background: #f39c12; }
+        .progress-fill.red { background: #e74c3c; }
+        
+        /* Status Indicator */
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-indicator.healthy { background: #2ecc71; }
+        .status-indicator.warning { background: #f39c12; }
+        .status-indicator.critical { background: #e74c3c; }
+        
+        /* Grid Lists */
+        .metric-list {
+            display: grid;
+            gap: 15px;
+        }
+        
+        .metric-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+        
+        .metric-item-label {
+            font-size: 14px;
+            color: #495057;
+        }
+        
+        .metric-item-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        /* Mini Charts */
+        .mini-chart {
+            height: 60px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            margin-top: 10px;
+            display: flex;
+            align-items: flex-end;
+            padding: 5px;
+            gap: 3px;
+        }
+        
+        .mini-bar {
+            flex: 1;
+            background: #3498db;
+            border-radius: 2px 2px 0 0;
+            min-height: 10%;
+        }
+        
+        .section-header {
+            font-size: 20px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin: 40px 0 20px 0;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #3498db;
+        }
+        
+        .insight-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        
+        .insight-box h3 {
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        
+        .insight-box ul {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .insight-box li {
+            padding: 8px 0;
+            padding-left: 20px;
+            position: relative;
+        }
+        
+        .insight-box li::before {
+            content: '→';
+            position: absolute;
+            left: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h1>memor.ai Admin</h1>
+        <button onclick="logout()" style="width: 100%; padding: 10px; margin-bottom: 20px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">Logout</button>
+        <div class="nav-item active" onclick="showPage('overview')">📊 Overview</div>
+        <div class="nav-item" onclick="showPage('acquisition')">📈 Acquisition</div>
+        <div class="nav-item" onclick="showPage('engagement')">🎯 Engagement</div>
+        <div class="nav-item" onclick="showPage('features')">⚙️ Feature Adoption</div>
+        <div class="nav-item" onclick="showPage('llm')">🤖 LLM Integration</div>
+        <div class="nav-item" onclick="showPage('performance')">⚡ Performance</div>
+        <div class="nav-item" onclick="showPage('dbview')">🗄️ Database View</div>
+    </div>
+
+    <div class="main-content">
+        <!-- Overview Page -->
+        <div id="overview" class="page active">
+            <div class="header">
+                <h2>Dashboard Overview</h2>
+                <div class="date-filter">
+                    <label>Time Range:</label>
+                    <select id="overview-time-range" onchange="handleTimeRangeChange('overview')">
+                        <option value="7d">Last 7 Days</option>
+                        <option value="30d">Last 30 Days</option>
+                        <option value="90d">Last 90 Days</option>
+                        <option value="all_time">All Time</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="insight-box">
+                <h3>🔥 Key Insights</h3>
+                <ul id="key-insights-list">
+                </ul>
+            </div>
+
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-label">Total Users</div>
+                    <div class="kpi-value" id="total-users">0</div>
+                    <div class="kpi-change positive"></div>
+                </div>
+                
+                <div class="kpi-card green">
+                    <div class="kpi-label">Active Users (7d)</div>
+                    <div class="kpi-value" id="active-users-7d">0</div>
+                    <div class="kpi-change positive"></div>
+                </div>
+                
+                <div class="kpi-card orange">
+                    <div class="kpi-label">Context Copies (7d)</div>
+                    <div class="kpi-value" id="context-copies-7d">0</div>
+                    <div class="kpi-change positive"></div>
+                </div>
+                
+                <div class="kpi-card purple">
+                    <div class="kpi-label">Avg Copies/User</div>
+                    <div class="kpi-value" id="avg-copies-per-user">0</div>
+                    <div class="kpi-change positive"></div>
+                </div>
+                
+                <div class="kpi-card">
+                    <div class="kpi-label">New Signups (7d)</div>
+                    <div class="kpi-value" id="new-signups-7d">0</div>
+                    <div class="kpi-change positive"></div>
+                </div>
+                
+                <div class="kpi-card green">
+                    <div class="kpi-label">Upgrade Interest</div>
+                    <div class="kpi-value" id="upgrade-interest-total">0</div>
+                    <div class="kpi-change positive"></div>
+                </div>
+                
+                <div class="kpi-card orange">
+                    <div class="kpi-label">Onboarding Completion</div>
+                    <div class="kpi-value" id="onboarding-completion-rate">0%</div>
+                    <div class="kpi-change"></div>
+                </div>
+                
+                <div class="kpi-card purple">
+                    <div class="kpi-label">7-Day Retention</div>
+                    <div class="kpi-value" id="retention-7d">0%</div>
+                    <div class="kpi-change positive"></div>
+                </div>
+            </div>
+
+            <div class="chart-grid">
+                <div class="chart-container full-width">
+                    <div class="chart-title" id="growth-timeline-title">User Growth & Activity</div>
+                    <div class="chart-placeholder">
+                        <canvas id="growth-timeline-chart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">Context Box Usage Distribution</div>
+                    <div class="chart-placeholder">
+                        <canvas id="box-distribution-chart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">LLM App Distribution</div>
+                    <div class="chart-placeholder">
+                        <canvas id="llm-distribution-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-header">Quick Stats</div>
+            <div class="chart-grid">
+                <div class="chart-container">
+                    <div class="chart-title">User Lifecycle Breakdown</div>
+                    <div class="metric-list" id="user-lifecycle-stats">
+                        <div class="metric-item">
+                            <span class="metric-item-label">
+                                <span class="status-indicator healthy"></span> Active Users
+                            </span>
+                            <span class="metric-item-value"></span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-item-label">
+                                <span class="status-indicator warning"></span> At-Risk Users
+                            </span>
+                            <span class="metric-item-value"></span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-item-label">
+                                <span class="status-indicator critical"></span> Dormant Users
+                            </span>
+                            <span class="metric-item-value"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">Performance Health</div>
+                    <div class="metric-list" id="performance-health-stats">
+                        <div class="metric-item">
+                            <span class="metric-item-label">Avg Retrieval Time</span>
+                            <span class="metric-item-value" style="color: #2ecc71;"></span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-item-label">Error Rate</span>
+                            <span class="metric-item-value" style="color: #2ecc71;"></span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-item-label">Uptime</span>
+                            <span class="metric-item-value" style="color: #2ecc71;"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Acquisition Page -->
+        <div id="acquisition" class="page">
+            <div class="header">
+                <h2>User Acquisition & Growth</h2>
+                <div class="date-filter">
+                    <label>Time Range:</label>
+                    <select id="acquisition-time-range" onchange="handleTimeRangeChange('acquisition')">
+                        <option value="7d">Last 7 Days</option>
+                        <option value="30d">Last 30 Days</option>
+                        <option value="90d">Last 90 Days</option>
+                        <option value="all_time">All Time</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-label">Total Registered Users</div>
+                    <div class="kpi-value" id="acquisition-total-users">0</div>
+                    <div class="kpi-change" id="acquisition-total-users-change"></div>
+                </div>
+                
+                <div class="kpi-card green">
+                    <div class="kpi-label">DAU (Daily Active)</div>
+                    <div class="kpi-value" id="acquisition-dau">0</div>
+                    <div class="kpi-change" id="acquisition-dau-change"></div>
+                </div>
+                
+                <div class="kpi-card orange">
+                    <div class="kpi-label">WAU (Weekly Active)</div>
+                    <div class="kpi-value" id="acquisition-wau">0</div>
+                    <div class="kpi-change" id="acquisition-wau-change"></div>
+                </div>
+                
+                <div class="kpi-card purple">
+                    <div class="kpi-label">MAU (Monthly Active)</div>
+                    <div class="kpi-value" id="acquisition-mau">0</div>
+                    <div class="kpi-change" id="acquisition-mau-change"></div>
+                </div>
+            </div>
+
+            <div class="chart-grid">
+                <div class="chart-container full-width">
+                    <div class="chart-title">User Growth Timeline</div>
+                    <div class="chart-placeholder">
+                        <canvas id="acquisition-timeline-chart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">Signup Funnel Conversion</div>
+                    <div class="chart-placeholder">
+                        <canvas id="funnel-chart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">Churn Analysis</div>
+                    <div class="metric-list" id="churn-analysis-stats">
+                        <div class="metric-item">
+                            <span class="metric-item-label">Weekly Churn Rate</span>
+                            <span class="metric-item-value"></span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-item-label">30-Day Churn</span>
+                            <span class="metric-item-value"></span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-item-label">Never Activated</span>
+                            <span class="metric-item-value"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <div class="chart-title">Install Funnel Details</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Stage</th>
+                            <th>Count</th>
+                            <th>Conversion %</th>
+                            <th>Drop-off</th>
+                            <th>Trend</th>
+                        </tr>
+                    </thead>
+                    <tbody id="funnel-table-body">
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="chart-grid" style="margin-top: 30px;">
+                <div class="chart-container">
+                    <div class="chart-title">Daily Signup Pattern</div>
+                    <div class="chart-placeholder">
+                        <canvas id="signup-day-pattern-chart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">Hourly Signup Pattern</div>
+                    <div class="chart-placeholder">
+                        <canvas id="signup-hour-pattern-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Engagement Page -->
+        <div id="engagement" class="page">
+            <div class="header">
+                <h2>User Engagement Metrics</h2>
+                <div class="date-filter">
+                    <label>Time Range:</label>
+                    <select id="engagement-time-range" onchange="handleTimeRangeChange('engagement')">
+                        <option value="7d">Last 7 Days</option>
+                        <option value="30d">Last 30 Days</option>
+                        <option value="90d">Last 90 Days</option>
+                        <option value="all_time">All Time</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-label">Total Context Copies</div>
+                    <div class="kpi-value" id="engagement-total-copies">0</div>
+                    <div class="kpi-change" id="engagement-total-copies-change"></div>
+                </div>
+                
+                <div class="kpi-card green">
+                    <div class="kpi-label">Avg Copies/Active User</div>
+                    <div class="kpi-value" id="engagement-avg-copies">0</div>
+                    <div class="kpi-change" id="engagement-avg-copies-change"></div>
+                </div>
+                
+                <div class="kpi-card orange">
+                    <div class="kpi-label">New Versions Created</div>
+                    <div class="kpi-value" id="engagement-new-versions">0</div>
+                    <div class="kpi-change" id="engagement-new-versions-change"></div>
+                </div>
+                
+                <div class="kpi-card purple">
+                    <div class="kpi-label">Avg Session Duration</div>
+                    <div class="kpi-value" id="engagement-session-duration">N/A</div>
+                    <div class="kpi-change" id="engagement-session-duration-change"></div>
+                </div>
+            </div>
+
+            <div class="chart-grid">
+                <div class="chart-container full-width">
+                    <div class="chart-title">Context Copy Activity Over Time</div>
+                    <div class="chart-placeholder">
+                        <canvas id="copy-activity-chart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">Context Box Usage Breakdown</div>
+                    <div class="metric-list" id="box-usage-breakdown">
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">Version Activity Stats</div>
+                    <div class="metric-list" id="version-stats-list">
+                    </div>
+                </div>
+            </div>
+
+            <div class="chart-grid">
+                <div class="chart-container">
+                    <div class="chart-title">Onboarding Completion Funnel</div>
+                    <div class="chart-placeholder">
+                        <canvas id="onboarding-funnel-chart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">Time Between Sessions</div>
+                    <div class="chart-placeholder">
+                        <canvas id="session-distribution-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-container" style="margin-top: 30px;">
+                <div class="chart-title">Top Power Users</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>User ID</th>
+                            <th>Context Copies (7d)</th>
+                            <th>Versions Created</th>
+                            <th>Most Used Box</th>
+                            <th>Sessions</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="power-users-table-body">
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="chart-grid" style="margin-top: 30px;">
+                <div class="chart-container">
+                    <div class="chart-title">Feature Adoption Breakdown</div>
+                    <div class="chart-placeholder">
+                        <canvas id="feature-adoption-chart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">Box Utilization</div>
+                    <div class="chart-placeholder">
+                        <canvas id="box-utilization-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chart-grid" style="margin-top: 30px;">
+                <div class="chart-container">
+                    <div class="chart-title">Onboarding Completion Funnel</div>
+                    <div class="metric-list" id="onboarding-funnel-stats">
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">Time Between Sessions</div>
+                    <div class="chart-placeholder">
+                        Distribution Chart: Hours between sessions (retention proxy)
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feature Adoption Page -->
+        <div id="features" class="page">
+            <div class="header">
+                <h2>Feature Adoption Analysis</h2>
+                <div class="date-filter">
+                    <label>Time Range:</label>
+                    <select id="features-time-range" onchange="handleTimeRangeChange('features')">
+                        <option value="7d">Last 7 Days</option>
+                        <option value="30d">Last 30 Days</option>
+                        <option value="90d">Last 90 Days</option>
+                        <option value="all_time">All Time</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-label">Context Box Utilization</div>
+                    <div class="kpi-value" id="features-box-utilization">0%</div>
+                    <div class="kpi-change" id="features-box-utilization-desc">Users with ≥1 box populated</div>
+                </div>
+                
+                <div class="kpi-card green">
+                    <div class="kpi-label">Avg Active Boxes/User</div>
+                    <div class="kpi-value" id="features-avg-boxes">0</div>
+                    <div class="kpi-change">Out of 5 available</div>
+                </div>
+                
+                <div class="kpi-card orange">
+                    <div class="kpi-label">Multi-Version Users</div>
+                    <div class="kpi-value" id="features-multi-version">0</div>
+                    <div class="kpi-change" id="features-multi-version-percent"></div>
+                </div>
+                
+                <div class="kpi-card purple">
+                    <div class="kpi-label">Dashboard Visitors</div>
+                    <div class="kpi-value" id="features-dashboard-visitors">0</div>
+                    <div class="kpi-change" id="features-dashboard-visitors-percent"></div>
+                </div>
+            </div>
+
+            <div class="chart-grid">
+                <div class="chart-container">
+                    <div class="chart-title">Populated Boxes Per User</div>
+                    <div class="chart-placeholder">
+                        <canvas id="boxes-per-user-chart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">Version Creation Distribution</div>
+                    <div class="chart-placeholder">
+                        <canvas id="version-distribution-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <div class="chart-title">Feature Adoption Breakdown</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Feature</th>
+                            <th>Unique Users</th>
+                            <th>Adoption Rate</th>
+                            <th>Avg Usage/User</th>
+                            <th>Trend</th>
+                        </tr>
+                    </thead>
+                    <tbody id="features-adoption-table-body">
+                        <!-- Dynamic content -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="chart-grid" style="margin-top: 30px;">
+                <div class="chart-container">
+                    <div class="chart-title">Empty vs Populated Box Ratio</div>
+                    <div class="metric-list" id="box-ratio-stats">
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">Power User Characteristics</div>
+                    <div class="metric-list" id="power-user-stats">
+                    </div>
+                </div>
+            </div>
+
+            <div class="chart-container full-width" style="margin-top: 30px;">
+                <div class="chart-title">Feature Adoption Timeline</div>
+                <div class="chart-placeholder">
+                    <canvas id="feature-timeline-chart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- LLM Integration Page -->
+        <div id="llm" class="page">
+            <div class="header">
+                <h2>LLM Integration Analytics</h2>
+                <div class="date-filter">
+                    <label>Time Range:</label>
+                    <select id="llm-time-range" onchange="handleTimeRangeChange('llm')">
+                        <option value="7d">Last 7 Days</option>
+                        <option value="30d">Last 30 Days</option>
+                        <option value="90d">Last 90 Days</option>
+                        <option value="all_time">All Time</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-label">Total LLM Apps Used</div>
+                    <div class="kpi-value" id="llm-total-apps">0</div>
+                    <div class="kpi-change">Detected unique platforms</div>
+                </div>
+                
+                <div class="kpi-card green">
+                    <div class="kpi-label">Avg LLMs/User</div>
+                    <div class="kpi-value" id="llm-avg-per-user">0</div>
+                    <div class="kpi-change" id="llm-avg-change"></div>
+                </div>
+                
+                <div class="kpi-card orange">
+                    <div class="kpi-label">Multi-LLM Users</div>
+                    <div class="kpi-value" id="llm-multi-users">0</div>
+                    <div class="kpi-change" id="llm-multi-percent"></div>
+                </div>
+                
+                <div class="kpi-card purple">
+                    <div class="kpi-label">Cross-Platform Sessions</div>
+                    <div class="kpi-value" id="llm-cross-platform">0</div>
+                    <div class="kpi-change" id="llm-cross-platform-percent"></div>
+                </div>
+            </div>
+
+            <div class="chart-grid">
+                <div class="chart-container">
+                    <div class="chart-title">LLM Platform Distribution</div>
+                    <div class="chart-placeholder">
+                        <canvas id="llm-platform-chart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">Context Copies by LLM</div>
+                    <div class="metric-list" id="llm-copies-breakdown">
+                    </div>
+                </div>
+            </div>
+
+            <div class="chart-container full-width">
+                <div class="chart-title">LLM Usage Trends Over Time</div>
+                <div class="chart-placeholder">
+                    <canvas id="llm-usage-trends-chart"></canvas>
+                </div>
+            </div>
+
+            <div class="table-container" style="margin-top: 30px;">
+                <div class="chart-title">LLM Platform Details</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Platform</th>
+                            <th>Unique Users</th>
+                            <th>Total Copies</th>
+                            <th>Avg Copies/User</th>
+                            <th>Market Share</th>
+                            <th>Growth</th>
+                        </tr>
+                    </thead>
+                    <tbody id="llm-platform-details-body">
+                        <!-- Dynamic content from API -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="chart-grid" style="margin-top: 30px;">
+                <div class="chart-container">
+                    <div class="chart-title">User LLM Diversity</div>
+                    <div class="chart-placeholder">
+                        Bar Chart: # of users by LLMs used (1, 2, 3, 4+)
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">Desktop vs Mobile Usage</div>
+                    <div class="metric-list">
+                        <div class="metric-item">
+                            <span class="metric-item-label">Desktop Browser</span>
+                            <span class="metric-item-value">7,256 (81%)</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-item-label">Mobile Web</span>
+                            <span class="metric-item-value">1,678 (19%)</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-item-label">Cross-Device Users</span>
+                            <span class="metric-item-value">534 (19%)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DB View Page -->
+        <div id="dbview" class="page">
+            <div class="header">
+                <h2>Database View</h2>
+                <div class="date-filter">
+                    <label>Table:</label>
+                    <select id="dbview-table-select" onchange="loadDBViewData()">
+                        <option value="users">Users</option>
+                        <option value="contexts">Context Versions</option>
+                        <option value="feedbacks">Feedbacks</option>
+                        <option value="upgrades">Upgrade Interests</option>
+                        <option value="analytics">Analytics Events</option>
+                        <option value="installs">Install Events</option>
+                        <option value="onboarding">Onboarding Events</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <div class="chart-title" id="dbview-table-title">Users</div>
+                <div style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <span id="dbview-total-count">0</span> total records
+                    </div>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <button id="dbview-prev-btn" onclick="loadDBViewPage('prev')" style="padding: 8px 15px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;" disabled>Previous</button>
+                        <span id="dbview-page-info">Page 1 of 1</span>
+                        <button id="dbview-next-btn" onclick="loadDBViewPage('next')" style="padding: 8px 15px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;" disabled>Next</button>
+                    </div>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table style="min-width: 100%;">
+                        <thead id="dbview-table-head">
+                            <!-- Dynamic headers -->
+                        </thead>
+                        <tbody id="dbview-table-body">
+                            <!-- Dynamic content -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Monetization Page (REMOVED) -->
+        <div id="monetization" class="page" style="display: none;">
+            <div class="header">
+                <h2>Monetization Signals</h2>
+                <div class="date-filter">
+                    <label>Time Range:</label>
+                    <select>
+                        <option>Last 30 Days</option>
+                        <option>All Time</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-label">Upgrade Interest Submissions</div>
+                    <div class="kpi-value">127</div>
+                    <div class="kpi-change positive">↑ 42% vs last month</div>
+                </div>
+                
+                <div class="kpi-card green">
+                    <div class="kpi-label">Interest Rate</div>
+                    <div class="kpi-value">4.5%</div>
+                    <div class="kpi-change positive">Of total users</div>
+                </div>
+                
+                <div class="kpi-card orange">
+                    <div class="kpi-label">Power Users (50+ copies/wk)</div>
+                    <div class="kpi-value">87</div>
+                    <div class="kpi-change positive">Potential paid tier</div>
+                </div>
+                
+                <div class="kpi-card purple">
+                    <div class="kpi-label">Calendly Bookings</div>
+                    <div class="kpi-value">34</div>
+                    <div class="kpi-change positive">High-intent conversations</div>
+                </div>
+            </div>
+
+            <div class="chart-grid">
+                <div class="chart-container">
+                    <div class="chart-title">Upgrade Interest Over Time</div>
+                    <div class="chart-placeholder">
+                        Line Chart: Cumulative upgrade interest submissions
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">Power User Distribution</div>
+                    <div class="chart-placeholder">
+                        Bar Chart: Users by weekly copy count ranges
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <div class="chart-title">Power User Identification (Top Conversion Candidates)</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>User Segment</th>
+                            <th>User Count</th>
+                            <th>Avg Copies/Week</th>
+                            <th>Avg Versions</th>
+                            <th>Upgrade Interest</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Super Power (100+ copies/wk)</td>
+                            <td class="metric-value">23</td>
+                            <td>127</td>
+                            <td>12.3</td>
+                            <td><span class="trend-badge up">48%</span></td>
+                        </tr>
+                        <tr>
+                            <td>Power User (50-99 copies/wk)</td>
+                            <td class="metric-value">64</td>
+                            <td>68</td>
+                            <td>8.7</td>
+                            <td><span class="trend-badge up">31%</span></td>
+                        </tr>
+                        <tr>
+                            <td>Heavy User (20-49 copies/wk)</td>
+                            <td class="metric-value">234</td>
+                            <td>32</td>
+                            <td>5.2</td>
+                            <td><span class="trend-badge stable">12%</span></td>
+                        </tr>
+                        <tr>
+                            <td>Regular User (10-19 copies/wk)</td>
+                            <td class="metric-value">512</td>
+                            <td>14</td>
+                            <td>3.4</td>
+                            <td><span class="trend-badge stable">4%</span></td>
+                        </tr>
+                        <tr>
+                            <td>Light User (<10 copies/wk)</td>
+                            <td class="metric-value">819</td>
+                            <td>4</td>
+                            <td>1.8</td>
+                            <td><span class="trend-badge down">1%</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="chart-grid" style="margin-top: 30px;">
+                <div class="chart-container">
+                    <div class="chart-title">Feature Requests from Upgrade Form</div>
+                    <div class="metric-list">
+                        <div class="metric-item">
+                            <span class="metric-item-label">Unlimited Context Boxes</span>
+                            <span class="metric-item-value">89 mentions</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-item-label">Permanent Version History</span>
+                            <span class="metric-item-value">67 mentions</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-item-label">Team Sharing</span>
+                            <span class="metric-item-value">54 mentions</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-item-label">Advanced Analytics</span>
+                            <span class="metric-item-value">42 mentions</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-item-label">API Access</span>
+                            <span class="metric-item-value">31 mentions</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">Conversion Funnel to Paid Interest</div>
+                    <div class="metric-list">
+                        <div class="metric-item">
+                            <span class="metric-item-label">Total Active Users</span>
+                            <span class="metric-item-value">1,652</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-item-label">Viewed Upgrade Page</span>
+                            <span class="metric-item-value">412 (25%)</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-item-label">Expressed Interest</span>
+                            <span class="metric-item-value">127 (31%)</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-item-label">Booked Calendly Call</span>
+                            <span class="metric-item-value">34 (27%)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chart-container full-width" style="margin-top: 30px;">
+                <div class="chart-title">Time to Upgrade Interest Expression</div>
+                <div class="chart-placeholder">
+                    Histogram: Days from signup to upgrade interest (cohort analysis)
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Page -->
+        <div id="performance" class="page">
+            <div class="header">
+                <h2>Product Performance & Health</h2>
+                <div class="date-filter">
+                    <label>Time Range:</label>
+                    <select>
+                        <option>Last 24 Hours</option>
+                        <option>Last 7 Days</option>
+                        <option>Last 30 Days</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="kpi-grid">
+                <div class="kpi-card green">
+                    <div class="kpi-label">Avg Retrieval Time</div>
+                    <div class="kpi-value">142ms</div>
+                    <div class="kpi-change positive">Target: <200ms ✓</div>
+                </div>
+                
+                <div class="kpi-card green">
+                    <div class="kpi-label">Error Rate</div>
+                    <div class="kpi-value">0.3%</div>
+                    <div class="kpi-change positive">Well below 1% target</div>
+                </div>
+                
+                <div class="kpi-card green">
+                    <div class="kpi-label">Uptime</div>
+                    <div class="kpi-value">99.8%</div>
+                    <div class="kpi-change positive">38 minutes downtime/month</div>
+                </div>
+                
+                <div class="kpi-card green">
+                    <div class="kpi-label">Extension Load Time</div>
+                    <div class="kpi-value">387ms</div>
+                    <div class="kpi-change positive">Fast startup</div>
+                </div>
+            </div>
+
+            <div class="chart-grid">
+                <div class="chart-container full-width">
+                    <div class="chart-title">Context Retrieval Performance (p50, p95, p99)</div>
+                    <div class="chart-placeholder">
+                        Line Chart: Retrieval time percentiles over time
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">Error Breakdown by Type</div>
+                    <div class="metric-list">
+                        <div class="metric-item">
+                            <span class="metric-item-label">Failed Context Saves</span>
+                            <span class="metric-item-value">23 (0.2%)</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-item-label">Failed Context Retrievals</span>
+                            <span class="metric-item-value">18 (0.1%)</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-item-label">Authentication Errors</span>
+                            <span class="metric-item-value">7 (0.05%)</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-item-label">Timeout Errors</span>
+                            <span class="metric-item-value">4 (0.03%)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">API Response Times</div>
+                    <div class="metric-list">
+                        <div class="metric-item">
+                            <span class="metric-item-label">GET Context (avg)</span>
+                            <span class="metric-item-value">142ms</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-item-label">POST Context (avg)</span>
+                            <span class="metric-item-value">234ms</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-item-label">Authentication (avg)</span>
+                            <span class="metric-item-value">187ms</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-item-label">List Versions (avg)</span>
+                            <span class="metric-item-value">156ms</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-container" style="margin-top: 30px;">
+                <div class="chart-title">Data Volume Statistics</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Metric</th>
+                            <th>Value</th>
+                            <th>Average</th>
+                            <th>Max</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Avg Context Size</td>
+                            <td class="metric-value">2.4 KB</td>
+                            <td>Per version</td>
+                            <td>147 KB</td>
+                            <td><span class="status-indicator healthy"></span> Normal</td>
+                        </tr>
+                        <tr>
+                            <td>Total Storage Used</td>
+                            <td class="metric-value">21.4 GB</td>
+                            <td>7.5 MB per user</td>
+                            <td>342 MB</td>
+                            <td><span class="status-indicator healthy"></span> Normal</td>
+                        </tr>
+                        <tr>
+                            <td>Largest Context Box</td>
+                            <td class="metric-value">147 KB</td>
+                            <td>-</td>
+                            <td>-</td>
+                            <td><span class="status-indicator healthy"></span> Normal</td>
+                        </tr>
+                        <tr>
+                            <td>Avg Versions per User</td>
+                            <td class="metric-value">3.1</td>
+                            <td>Across all boxes</td>
+                            <td>47</td>
+                            <td><span class="status-indicator healthy"></span> Normal</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="chart-grid" style="margin-top: 30px;">
+                <div class="chart-container">
+                    <div class="chart-title">Version Deletion Events (30-day Rule)</div>
+                    <div class="metric-list">
+                        <div class="metric-item">
+                            <span class="metric-item-label">Total Deletions (30d)</span>
+                            <span class="metric-item-value">234</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-item-label">Avg per Day</span>
+                            <span class="metric-item-value">7.8</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-item-label">Storage Freed</span>
+                            <span class="metric-item-value">1.2 GB</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">System Health Score</div>
+                    <div class="metric-list">
+                        <div class="metric-item">
+                            <span class="metric-item-label">
+                                <span class="status-indicator healthy"></span> Performance
+                            </span>
+                            <span class="metric-item-value">98/100</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-item-label">
+                                <span class="status-indicator healthy"></span> Reliability
+                            </span>
+                            <span class="metric-item-value">99/100</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-item-label">
+                                <span class="status-indicator healthy"></span> Error Rate
+                            </span>
+                            <span class="metric-item-value">97/100</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-item-label">
+                                <span class="status-indicator healthy"></span> Overall Health
+                            </span>
+                            <span class="metric-item-value">98/100</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chart-container full-width" style="margin-top: 30px;">
+                <div class="chart-title">Request Volume & Response Time Correlation</div>
+                <div class="chart-placeholder">
+                    Dual-axis Chart: Request volume (bars) vs avg response time (line)
+                </div>
+            </div>
+        </div>
+
+        <!-- Retention Page -->
+        <div id="retention" class="page">
+            <div class="header">
+                <h2>Retention & Lifecycle Analysis</h2>
+                <div class="date-filter">
+                    <label>Cohort:</label>
+                    <select>
+                        <option>All Cohorts</option>
+                        <option>October 2024</option>
+                        <option>September 2024</option>
+                        <option>August 2024</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-label">7-Day Retention</div>
+                    <div class="kpi-value">64%</div>
+                    <div class="kpi-change positive">↑ 5% vs last cohort</div>
+                </div>
+                
+                <div class="kpi-card green">
+                    <div class="kpi-label">30-Day Retention</div>
+                    <div class="kpi-value">42%</div>
+                    <div class="kpi-change positive">↑ 3% vs last cohort</div>
+                </div>
+                
+                <div class="kpi-card orange">
+                    <div class="kpi-label">90-Day Retention</div>
+                    <div class="kpi-value">28%</div>
+                    <div class="kpi-change positive">↑ 2% vs last cohort</div>
+                </div>
+                
+                <div class="kpi-card purple">
+                    <div class="kpi-label">Reactivation Rate</div>
+                    <div class="kpi-value">15%</div>
+                    <div class="kpi-change positive">Dormant → Active</div>
+                </div>
+            </div>
+
+            <div class="chart-container full-width">
+                <div class="chart-title">Cohort Retention Analysis</div>
+                <div class="chart-placeholder">
+                    Cohort Table: Week 0-12 retention by signup cohort (heatmap style)
+                </div>
+            </div>
+
+            <div class="chart-grid">
+                <div class="chart-container">
+                    <div class="chart-title">Retention by Onboarding Completion</div>
+                    <div class="chart-placeholder">
+                        Bar Chart Comparison: Completed vs Incomplete onboarding retention curves
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">Retention by Activity Level</div>
+                    <div class="chart-placeholder">
+                        Line Chart: Multiple retention curves by user segment
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-container" style="margin-top: 30px;">
+                <div class="chart-title">User Lifecycle Distribution</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Lifecycle Stage</th>
+                            <th>User Count</th>
+                            <th>% of Total</th>
+                            <th>Avg Activity</th>
+                            <th>Actions Needed</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="status-indicator healthy"></span> New (0-7 days)</td>
+                            <td class="metric-value">342</td>
+                            <td>12%</td>
+                            <td>High engagement</td>
+                            <td>Monitor onboarding</td>
+                        </tr>
+                        <tr>
+                            <td><span class="status-indicator healthy"></span> Active</td>
+                            <td class="metric-value">1,652</td>
+                            <td>58%</td>
+                            <td>Regular usage</td>
+                            <td>Maintain satisfaction</td>
+                        </tr>
+                        <tr>
+                            <td><span class="status-indicator warning"></span> At-Risk</td>
+                            <td class="metric-value">487</td>
+                            <td>17%</td>
+                            <td>Declining usage</td>
+                            <td>Re-engagement campaign</td>
+                        </tr>
+                        <tr>
+                            <td><span class="status-indicator critical"></span> Dormant (14+ days)</td>
+                            <td class="metric-value">366</td>
+                            <td>13%</td>
+                            <td>No activity</td>
+                            <td>Win-back campaign</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="chart-grid" style="margin-top: 30px;">
+                <div class="chart-container">
+                    <div class="chart-title">Churn Reasons Analysis</div>
+                    <div class="metric-list">
+                        <div class="metric-item">
+                            <span class="metric-item-label">Never Completed Onboarding</span>
+                            <span class="metric-item-value">34%</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-item-label">Created Context but Never Used</span>
+                            <span class="metric-item-value">28%</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-item-label">Used Once, Never Returned</span>
+                            <span class="metric-item-value">21%</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-item-label">Active → Dormant</span>
+                            <span class="metric-item-value">17%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">Reactivation Success</div>
+                    <div class="metric-list">
+                        <div class="metric-item">
+                            <span class="metric-item-label">Total Dormant Users</span>
+                            <span class="metric-item-value">366</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-item-label">Reactivated (30d)</span>
+                            <span class="metric-item-value">55 (15%)</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-item-label">Avg Days to Reactivate</span>
+                            <span class="metric-item-value">18 days</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chart-container full-width" style="margin-top: 30px;">
+                <div class="chart-title">Week-over-Week Retention Trends</div>
+                <div class="chart-placeholder">
+                    Line Chart: W1, W2, W3, W4 retention rates over time (by cohort week)
+                </div>
+            </div>
+
+            <div class="chart-grid" style="margin-top: 30px;">
+                <div class="chart-container">
+                    <div class="chart-title">First Action Impact on Retention</div>
+                    <div class="chart-placeholder">
+                        Grouped Bar Chart: 30-day retention by first action type
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">Time to Value (TTV) Analysis</div>
+                    <div class="metric-list">
+                        <div class="metric-item">
+                            <span class="metric-item-label">Avg Time to First Copy</span>
+                            <span class="metric-item-value">4.2 hours</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-item-label">Users Copying in <1hr</span>
+                            <span class="metric-item-value">892 (31%)</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-item-label">Retention of Fast Users</span>
+                            <span class="metric-item-value">78% (7-day)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Content Insights Page (REMOVED) -->
+        <div id="content" class="page" style="display: none;">
+            <div class="header">
+                <h2>Content & Context Insights</h2>
+                <div class="date-filter">
+                    <label>Time Range:</label>
+                    <select>
+                        <option>Last 30 Days</option>
+                        <option>All Time</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-label">Total Context Versions</div>
+                    <div class="kpi-value">8,923</div>
+                    <div class="kpi-change positive">↑ 1,247 this month</div>
+                </div>
+                
+                <div class="kpi-card green">
+                    <div class="kpi-label">Avg Words/Version</div>
+                    <div class="kpi-value">487</div>
+                    <div class="kpi-change positive">~2.4 KB average</div>
+                </div>
+                
+                <div class="kpi-card orange">
+                    <div class="kpi-label">Most Updated Box</div>
+                    <div class="kpi-value">Career</div>
+                    <div class="kpi-change positive">3,234 versions</div>
+                </div>
+                
+                <div class="kpi-card purple">
+                    <div class="kpi-label">Unused Context Boxes</div>
+                    <div class="kpi-value">2,557</div>
+                    <div class="kpi-change">Created but 0 copies</div>
+                </div>
+            </div>
+
+            <div class="chart-grid">
+                <div class="chart-container">
+                    <div class="chart-title">Context Box Popularity (All-Time)</div>
+                    <div class="metric-list">
+                        <div class="metric-item">
+                            <div>
+                                <div class="metric-item-label">💼 Career</div>
+                                <div class="mini-chart">
+                                    <div class="mini-bar" style="height: 100%;"></div>
+                                    <div class="mini-bar" style="height: 85%;"></div>
+                                    <div class="mini-bar" style="height: 92%;"></div>
+                                    <div class="mini-bar" style="height: 78%;"></div>
+                                    <div class="mini-bar" style="height: 88%;"></div>
+                                    <div class="mini-bar" style="height: 95%;"></div>
+                                    <div class="mini-bar" style="height: 100%;"></div>
+                                </div>
+                            </div>
+                            <span class="metric-item-value">3,234</span>
+                        </div>
+                        <div class="metric-item">
+                            <div>
+                                <div class="metric-item-label">🏢 Work</div>
+                                <div class="mini-chart">
+                                    <div class="mini-bar" style="height: 70%;"></div>
+                                    <div class="mini-bar" style="height: 65%;"></div>
+                                    <div class="mini-bar" style="height: 80%;"></div>
+                                    <div class="mini-bar" style="height: 75%;"></div>
+                                    <div class="mini-bar" style="height: 85%;"></div>
+                                    <div class="mini-bar" style="height: 78%;"></div>
+                                    <div class="mini-bar" style="height: 82%;"></div>
+                                </div>
+                            </div>
+                            <span class="metric-item-value">2,189</span>
+                        </div>
+                        <div class="metric-item">
+                            <div>
+                                <div class="metric-item-label">✈️ Travel</div>
+                                <div class="mini-chart">
+                                    <div class="mini-bar" style="height: 45%;"></div>
+                                    <div class="mini-bar" style="height: 50%;"></div>
+                                    <div class="mini-bar" style="height: 60%;"></div>
+                                    <div class="mini-bar" style="height: 55%;"></div>
+                                    <div class="mini-bar" style="height: 52%;"></div>
+                                    <div class="mini-bar" style="height: 58%;"></div>
+                                    <div class="mini-bar" style="height: 62%;"></div>
+                                </div>
+                            </div>
+                            <span class="metric-item-value">1,456</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">Context Size Distribution</div>
+                    <div class="chart-placeholder">
+                        Histogram: Number of versions by word count ranges
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <div class="chart-title">Context Box Performance Metrics</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Context Box</th>
+                            <th>Total Versions</th>
+                            <th>Total Copies</th>
+                            <th>Avg Words</th>
+                            <th>Update Frequency</th>
+                            <th>Engagement</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>💼 Career</td>
+                            <td class="metric-value">3,234</td>
+                            <td>12,847</td>
+                            <td>523</td>
+                            <td>Every 7.2 days</td>
+                            <td><span class="trend-badge up">High</span></td>
+                        </tr>
+                        <tr>
+                            <td>🏢 Work</td>
+                            <td class="metric-value">2,189</td>
+                            <td>8,934</td>
+                            <td>612</td>
+                            <td>Every 6.8 days</td>
+                            <td><span class="trend-badge up">High</span></td>
+                        </tr>
+                        <tr>
+                            <td>✈️ Travel</td>
+                            <td class="metric-value">1,456</td>
+                            <td>4,123</td>
+                            <td>398</td>
+                            <td>Every 11.3 days</td>
+                            <td><span class="trend-badge stable">Medium</span></td>
+                        </tr>
+                        <tr>
+                            <td>🏥 Health</td>
+                            <td class="metric-value">1,178</td>
+                            <td>2,567</td>
+                            <td>734</td>
+                            <td>Every 15.7 days</td>
+                            <td><span class="trend-badge stable">Medium</span></td>
+                        </tr>
+                        <tr>
+                            <td>⚙️ Custom</td>
+                            <td class="metric-value">866</td>
+                            <td>1,892</td>
+                            <td>445</td>
+                            <td>Every 9.4 days</td>
+                            <td><span class="trend-badge down">Low</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="chart-grid" style="margin-top: 30px;">
+                <div class="chart-container">
+                    <div class="chart-title">Version Update Patterns</div>
+                    <div class="chart-placeholder">
+                        Heatmap: Day of week vs hour showing when users update context
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">Content Lifecycle</div>
+                    <div class="metric-list">
+                        <div class="metric-item">
+                            <span class="metric-item-label">Avg Version Lifespan</span>
+                            <span class="metric-item-value">21 days</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-item-label">Versions Updated >5 Times</span>
+                            <span class="metric-item-value">1,234</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-item-label">Stale Boxes (30+ days)</span>
+                            <span class="metric-item-value">487</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-item-label">Active Boxes (Used <7d)</span>
+                            <span class="metric-item-value">6,234</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chart-container full-width" style="margin-top: 30px;">
+                <div class="chart-title">Context Box Usage Over Time (Trend Analysis)</div>
+                <div class="chart-placeholder">
+                    Multi-line Chart: Weekly copies per context box type
+                </div>
+            </div>
+
+            <div class="table-container" style="margin-top: 30px;">
+                <div class="chart-title">Empty vs Populated Analysis</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Box Type</th>
+                            <th>Total Created</th>
+                            <th>Populated</th>
+                            <th>Empty</th>
+                            <th>Empty Rate</th>
+                            <th>Avg Copies (Populated)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>💼 Career</td>
+                            <td class="metric-value">2,847</td>
+                            <td>2,456 (86%)</td>
+                            <td>391</td>
+                            <td>14%</td>
+                            <td>5.2</td>
+                        </tr>
+                        <tr>
+                            <td>🏢 Work</td>
+                            <td class="metric-value">2,847</td>
+                            <td>2,123 (75%)</td>
+                            <td>724</td>
+                            <td>25%</td>
+                            <td>4.2</td>
+                        </tr>
+                        <tr>
+                            <td>✈️ Travel</td>
+                            <td class="metric-value">2,847</td>
+                            <td>1,789 (63%)</td>
+                            <td>1,058</td>
+                            <td>37%</td>
+                            <td>2.3</td>
+                        </tr>
+                        <tr>
+                            <td>🏥 Health</td>
+                            <td class="metric-value">2,847</td>
+                            <td>1,523 (53%)</td>
+                            <td>1,324</td>
+                            <td>47%</td>
+                            <td>1.7</td>
+                        </tr>
+                        <tr>
+                            <td>⚙️ Custom</td>
+                            <td class="metric-value">2,847</td>
+                            <td>1,787 (63%)</td>
+                            <td>1,060</td>
+                            <td>37%</td>
+                            <td>1.1</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="/admin-static/admin.js"></script>
+</body>
+</html>

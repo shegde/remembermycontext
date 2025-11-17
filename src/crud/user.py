@@ -6,6 +6,7 @@ import secrets
 
 from ..models import User, PasswordResetToken
 from ..services.auth import get_password_hash, verify_password
+from ..services.email import email_service
 from ..config import settings
 from ..logging_config import logger
 

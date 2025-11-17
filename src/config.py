@@ -31,6 +31,9 @@ class Settings:
     ENABLE_PASSWORD_RESET: bool = os.getenv("ENABLE_PASSWORD_RESET", "true").lower() == "true"
     CALENDLY_LINK: str = os.getenv("CALENDLY_LINK", "")
     
+    ADMIN_USERNAME: str = os.getenv("ADMIN_USERNAME", "admin")
+    ADMIN_PASSWORD: str = os.getenv("ADMIN_PASSWORD", "admin")
+    
     def validate(self) -> None:
         errors = []
         

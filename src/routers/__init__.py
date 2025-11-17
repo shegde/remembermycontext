@@ -4,6 +4,7 @@ from .analytics import router as analytics_router
 from .feedback import router as feedback_router
 from .upgrade import router as upgrade_router
 from .onboarding import router as onboarding_router
+from .admin import router as admin_router
 
 __all__ = [
     "auth_router",
@@ -12,4 +13,5 @@ __all__ = [
     "feedback_router",
     "upgrade_router",
     "onboarding_router",
+    "admin_router",
 ]

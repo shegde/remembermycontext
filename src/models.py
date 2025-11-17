@@ -13,7 +13,7 @@ class User(SQLModel, table=True):
     verification_token_expires_at: Optional[datetime] = None
     onboarding_completed: bool = Field(default=False)
     account_deletion_requested_at: Optional[datetime] = None
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), index=True)
     
     context_versions: List["ContextVersion"] = Relationship(back_populates="user")
     feedback: List["Feedback"] = Relationship(back_populates="user")
@@ -49,9 +49,9 @@ class Feedback(SQLModel, table=True):
 class AnalyticsEvent(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     user_id: Optional[UUID] = Field(default=None, foreign_key="user.id")
-    event_type: str
+    event_type: str = Field(index=True)
     event_metadata: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), index=True)
     
     user: Optional[User] = Relationship(back_populates="analytics_events")
 
@@ -71,4 +71,27 @@ class UpgradeInterest(SQLModel, table=True):
     email: str
     notes: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class Admin(SQLModel, table=True):
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    username: str = Field(unique=True, index=True)
+    password_hash: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class InstallEvent(SQLModel, table=True):
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    user_id: Optional[UUID] = Field(default=None, foreign_key="user.id")
+    status: str  # 'started', 'completed', 'failed'
+    event_metadata: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), index=True)
+
+
+class OnboardingEvent(SQLModel, table=True):
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    user_id: UUID = Field(foreign_key="user.id")
+    event_type: str  # 'started', 'step_1_completed', 'step_2_completed', 'step_3_completed', 'completed', 'skipped'
+    step_number: Optional[int] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), index=True)
 
