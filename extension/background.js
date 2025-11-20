@@ -1,9 +1,7 @@
-// Track installation
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === 'install' || details.reason === 'update') {
-    // Track installation event
     chrome.storage.local.get(['apiBase'], (result) => {
-      const API_BASE = result.apiBase || 'https://remembermycontexttest.onrender.com/api/v1';
+      const API_BASE = result.apiBase || 'http://localhost:8000/api/v1';
       
       fetch(`${API_BASE}/analytics`, {
         method: 'POST',
@@ -18,9 +16,7 @@ chrome.runtime.onInstalled.addListener((details) => {
             timestamp: new Date().toISOString()
           }
         })
-      }).catch(error => {
-        console.log('Failed to track installation:', error);
-      });
+      }).catch(() => {});
     });
   }
 });

@@ -153,7 +153,7 @@ echo ""
 echo "Step 10: Error Handling"
 echo "-----------------------"
 test_endpoint "Invalid Time Range" "GET" "/api/v1/admin/analytics/overview/kpis?time_range=invalid" "" "200" "$AUTH_HEADER"
-test_endpoint "Unauthorized Access" "GET" "/api/v1/admin/analytics/overview/kpis" "" "401" ""
+test_endpoint "Unauthorized Access" "GET" "/api/v1/admin/analytics/overview/kpis" "" "403" ""
 test_endpoint "Invalid Table Name" "GET" "/api/v1/admin/analytics/dbview/invalid?page=1" "" "404" "$AUTH_HEADER"
 echo ""
 

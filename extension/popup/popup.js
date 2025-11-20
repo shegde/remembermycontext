@@ -30,11 +30,9 @@ function getLLMName(hostname) {
     return null;
 }
 
-// Helper function to handle API calls with automatic logout on 401
 async function apiCall(url, options = {}) {
     const response = await fetch(url, options);
     
-    // If unauthorized, logout and redirect to login
     if (response.status === 401 || response.status === 403) {
         if (currentUser) {
             await handleLogout();
@@ -66,14 +64,12 @@ async function initializeConfig() {
 async function initializeApp() {
     const user = await chrome.storage.local.get(['user']);
     if (user.user && user.user.access_token) {
-        // Validate token by making a test request
         try {
             const testResponse = await fetch(`${API_BASE}/contexts`, {
                 headers: { 'Authorization': `Bearer ${user.user.access_token}` }
             });
             
             if (testResponse.ok || testResponse.status === 404) {
-                // Token is valid (404 is ok, means no contexts yet)
                 currentUser = user.user;
                 const onboardingStatus = await checkOnboardingStatus();
                 if (!onboardingStatus || !onboardingStatus.completed) {
@@ -83,18 +79,14 @@ async function initializeApp() {
                     await loadContexts();
                 }
             } else if (testResponse.status === 401 || testResponse.status === 403) {
-                // Token expired or invalid
                 await handleLogout();
                 showScreen('welcome');
             } else {
-                // Other error, try to continue but might need to login
                 currentUser = user.user;
                 showScreen('main');
                 await loadContexts();
             }
         } catch (error) {
-            // Network error or other issue - clear and show welcome
-            console.error('Error validating token:', error);
             await handleLogout();
             showScreen('welcome');
         }
@@ -110,7 +102,6 @@ function safeAddEventListener(id, event, handler) {
             element.addEventListener(event, handler);
         }
     } catch (error) {
-        console.warn(`Failed to add event listener to ${id}:`, error);
     }
 }
 
@@ -170,12 +161,21 @@ function setupEventListeners() {
     });
     
     safeAddEventListener('login-forgot-link', 'click', () => {
+        const email = document.getElementById('login-email').value.trim();
         showScreen('forgot-password');
+        updateForgotPasswordEmail(email);
     });
     
     safeAddEventListener('forgot-password-back-btn', 'click', () => {
         showScreen('login');
     });
+    
+    function updateForgotPasswordEmail(email) {
+        const emailInput = document.getElementById('forgot-password-email');
+        if (emailInput) {
+            emailInput.value = email || '';
+        }
+    }
     
     safeAddEventListener('forgot-password-submit', 'click', handleForgotPassword);
     safeAddEventListener('reset-password-submit', 'click', handleResetPassword);
@@ -194,7 +194,19 @@ function setupEventListeners() {
     
     safeAddEventListener('settings-back-btn', 'click', () => showScreen('main'));
     safeAddEventListener('settings-logout-btn', 'click', handleLogout);
-    safeAddEventListener('settings-forgot-password-btn', 'click', () => showScreen('forgot-password'));
+    safeAddEventListener('settings-reset-password-btn', 'click', () => {
+        if (!currentUser) {
+            showScreen('welcome');
+            return;
+        }
+        showScreen('change-password');
+    });
+    
+    safeAddEventListener('change-password-back-btn', 'click', () => {
+        showScreen('settings');
+    });
+    
+    safeAddEventListener('change-password-submit', 'click', handleChangePassword);
     safeAddEventListener('delete-account-btn', 'click', handleDeleteAccount);
     safeAddEventListener('cancel-deletion-btn', 'click', handleCancelDeletion);
     
@@ -210,8 +222,6 @@ function showScreen(screenName) {
     const targetScreen = document.getElementById(screenName + '-screen');
     if (targetScreen) {
         targetScreen.classList.add('active');
-    } else {
-        console.warn(`Screen not found: ${screenName}-screen`);
     }
 }
 
@@ -245,13 +255,12 @@ async function handleSignup() {
         if (response.ok) {
             const data = await response.json();
             
-            // Check if email verification is required
-            if (data.email_verification_required) {
-                showToast('Account created! Please check your email to verify your account.', 'success');
-                showScreen('login');
+            if (data.email_verification_required || data.message?.toLowerCase().includes('verify')) {
+                showScreen('email-verification');
                 document.getElementById('login-email').value = email;
+                showToast('Account created! Please check your email to verify your account.', 'success');
+                return;
             } else {
-                // Try to login if verification not required
                 try {
                     const loginResponse = await fetch(`${API_BASE}/auth/login`, {
                         method: 'POST',
@@ -319,8 +328,19 @@ async function handleLogin() {
             }
             showToast('Login successful!');
         } else {
-            const errorMsg = await parseApiError(response, 'Login failed');
-            showToast(errorMsg, 'error');
+            const errorData = await response.json().catch(() => ({}));
+            const errorMsg = errorData.detail?.message || errorData.message || 'Login failed';
+            const errorCode = errorData.detail?.error_code;
+            
+            if (response.status === 401 && errorCode === 'EMAIL_NOT_VERIFIED') {
+                showScreen('email-verification');
+                if (email) {
+                    document.getElementById('login-email').value = email;
+                }
+                showToast('Please verify your email before logging in.', 'error');
+            } else {
+                showToast(errorMsg, 'error');
+            }
         }
     } catch (error) {
         showToast(`Network error: ${error.message}`, 'error');
@@ -353,13 +373,10 @@ async function loadContexts() {
             });
             updateContextBoxes();
         } else if (response.status === 401 || response.status === 403) {
-            // Token expired or invalid - redirect to login
             await handleLogout();
             showToast('Session expired. Please login again.', 'error');
         }
     } catch (error) {
-        console.error('Error loading contexts:', error);
-        // On error, check if it's an auth issue
         if (!currentUser || !currentUser.access_token) {
             showScreen('welcome');
         }
@@ -414,6 +431,7 @@ async function loadVersions() {
             displayVersions(versions);
         }
     } catch (error) {
+        showToast('Failed to load versions', 'error');
     }
 }
 
@@ -571,7 +589,6 @@ async function insertVersion(boxName, versionNumber) {
                 body: JSON.stringify({ site: currentSite, llm_name: llmName })
             });
             
-            // Only log insert event if on an allowed LLM site
             if (llmName) {
                 await fetch(`${API_BASE}/analytics`, {
                     method: 'POST',
@@ -700,7 +717,6 @@ async function handleCompleteOnboarding() {
     if (!currentUser || !currentUser.access_token) return;
     
     try {
-        // Track onboarding step completion
         await fetch(`${API_BASE}/analytics`, {
             method: 'POST',
             headers: {
@@ -738,7 +754,6 @@ async function handleSkipOnboarding() {
     }
     
     try {
-        // Track onboarding skipped
         await fetch(`${API_BASE}/analytics`, {
             method: 'POST',
             headers: {
@@ -773,9 +788,10 @@ async function handleSkipOnboarding() {
 }
 
 async function handleForgotPassword() {
-    const email = document.getElementById('forgot-password-email').value.trim();
+    const emailInput = document.getElementById('forgot-password-email');
+    const email = emailInput?.value?.trim() || '';
     
-    if (!validateEmail(email)) {
+    if (!email || !validateEmail(email)) {
         showToast('Please enter a valid email address', 'error');
         return;
     }
@@ -840,12 +856,100 @@ async function handleResetPassword() {
     }
 }
 
+async function handleChangePassword() {
+    if (!currentUser || !currentUser.access_token) {
+        showToast('Please log in first', 'error');
+        showScreen('welcome');
+        return;
+    }
+    
+    const currentPassword = document.getElementById('change-password-current').value.trim();
+    const newPassword = document.getElementById('change-password-new').value.trim();
+    const confirmPassword = document.getElementById('change-password-confirm').value.trim();
+    
+    if (!currentPassword) {
+        showToast('Please enter your current password', 'error');
+        return;
+    }
+    
+    if (!newPassword) {
+        showToast('Please enter a new password', 'error');
+        return;
+    }
+    
+    if (!validatePassword(newPassword)) {
+        showToast('Password must be at least 8 characters long', 'error');
+        return;
+    }
+    
+    if (!/.*[a-zA-Z].*/.test(newPassword)) {
+        showToast('Password must contain at least one letter', 'error');
+        return;
+    }
+    
+    if (!/.*[0-9].*/.test(newPassword)) {
+        showToast('Password must contain at least one digit', 'error');
+        return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+        showToast('New password and confirm password do not match', 'error');
+        return;
+    }
+    
+    if (currentPassword === newPassword) {
+        showToast('New password must be different from current password', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE}/auth/change-password`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${currentUser.access_token}`
+            },
+            body: JSON.stringify({
+                current_password: currentPassword,
+                new_password: newPassword
+            })
+        });
+        
+        if (response.ok) {
+            showToast('Password changed successfully! Please log in again.', 'success');
+            document.getElementById('change-password-current').value = '';
+            document.getElementById('change-password-new').value = '';
+            document.getElementById('change-password-confirm').value = '';
+            await handleLogout();
+            showScreen('login');
+        } else {
+            const errorMsg = await parseApiError(response, 'Failed to change password');
+            showToast(errorMsg, 'error');
+        }
+    } catch (error) {
+        showToast(`Network error: ${error.message}`, 'error');
+    }
+}
+
 async function handleResendVerification() {
-    const email = currentUser?.email || document.getElementById('login-email').value.trim();
+    let email = currentUser?.email;
+    if (!email) {
+        email = document.getElementById('login-email')?.value?.trim();
+    }
+    if (!email) {
+        email = document.getElementById('signup-email')?.value?.trim();
+    }
     
     if (!email) {
-        showToast('Please enter your email', 'error');
+        showToast('Please enter your email address', 'error');
+        showScreen('login');
         return;
+    }
+    
+    const btn = document.getElementById('resend-verification-btn');
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Sending...';
     }
     
     try {
@@ -856,13 +960,21 @@ async function handleResendVerification() {
         });
         
         if (response.ok) {
-            showToast('Verification email sent! Check your inbox.', 'success');
+            showToast('Verification email sent! Please check your inbox and spam folder.', 'success');
         } else {
-            const errorMsg = await parseApiError(response, 'Failed to send verification email');
+            const errorData = await response.json().catch(() => ({}));
+            const errorMsg = errorData.detail?.message || errorData.message || 'Failed to send verification email';
             showToast(errorMsg, 'error');
         }
     } catch (error) {
         showToast(`Network error: ${error.message}`, 'error');
+    } finally {
+        if (btn) {
+            setTimeout(() => {
+                btn.disabled = false;
+                btn.textContent = 'Resend Verification Email';
+            }, 5000);
+        }
     }
 }
 

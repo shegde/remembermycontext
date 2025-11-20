@@ -3,6 +3,7 @@ from typing import Optional, List
 from uuid import UUID
 
 from ..models import AnalyticsEvent
+from ..logging_config import logger
 
 
 def create_analytics_event(
@@ -11,15 +12,20 @@ def create_analytics_event(
     event_type: str,
     metadata: dict
 ) -> AnalyticsEvent:
-    event = AnalyticsEvent(
-        user_id=user_id,
-        event_type=event_type,
-        event_metadata=metadata
-    )
-    session.add(event)
-    session.commit()
-    session.refresh(event)
-    return event
+    try:
+        event = AnalyticsEvent(
+            user_id=user_id,
+            event_type=event_type,
+            event_metadata=metadata
+        )
+        session.add(event)
+        session.commit()
+        session.refresh(event)
+        return event
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Failed to create analytics event: {str(e)}")
+        raise
 
 
 def get_analytics_events(

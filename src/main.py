@@ -1,17 +1,21 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Query, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
+from sqlmodel import Session
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
-from .database import create_db_and_tables
+from .database import create_db_and_tables, get_session, engine
 from .routers import auth_router, context_router, feedback_router, analytics_router, upgrade_router, onboarding_router, admin_router
 from .config import settings
 from .logging_config import logger
 from .middleware import limiter
+from .services.crypto import crypto_service
+from .services.verification import handle_email_verification, handle_password_reset_page
+from .crud.admin import ensure_admin_exists
 
 BASE_DIR = Path(__file__).parent
 DASHBOARD_DIR = BASE_DIR / "dashboard"
@@ -30,14 +34,10 @@ async def lifespan(app: FastAPI):
     
     create_db_and_tables()
     
-    from .services.crypto import crypto_service
     if crypto_service is None:
         logger.error("Crypto service failed to initialize")
         raise RuntimeError("Crypto service initialization failed")
     
-    # Ensure admin user exists
-    from .crud.admin import ensure_admin_exists
-    from .database import engine
     from sqlmodel import Session
     with Session(engine) as session:
         ensure_admin_exists(session, settings.ADMIN_USERNAME, settings.ADMIN_PASSWORD)
@@ -117,6 +117,22 @@ def health_check():
         "status": "healthy",
         "database": "connected"
     }
+
+
+@app.get("/verify-email", response_class=HTMLResponse)
+def verify_email_web(
+    token: str = Query(...),
+    session: Session = Depends(get_session)
+):
+    return handle_email_verification(token, session)
+
+
+@app.get("/reset-password", response_class=HTMLResponse)
+def reset_password_web(
+    token: str = Query(...),
+    session: Session = Depends(get_session)
+):
+    return handle_password_reset_page(token, session)
 
 
 @app.get("/dashboard")

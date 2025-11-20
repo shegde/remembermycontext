@@ -13,15 +13,20 @@ def create_feedback(
     email: Optional[str] = None,
     user_id: Optional[UUID] = None
 ) -> Feedback:
-    feedback = Feedback(
-        user_id=user_id,
-        type=feedback_type,
-        message=message,
-        email=email
-    )
-    session.add(feedback)
-    session.commit()
-    session.refresh(feedback)
-    logger.info(f"Feedback created: type={feedback_type}, user_id={user_id}")
-    return feedback
+    try:
+        feedback = Feedback(
+            user_id=user_id,
+            type=feedback_type,
+            message=message,
+            email=email
+        )
+        session.add(feedback)
+        session.commit()
+        session.refresh(feedback)
+        logger.info(f"Feedback created: type={feedback_type}, user_id={user_id}")
+        return feedback
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Failed to create feedback: {str(e)}")
+        raise
 

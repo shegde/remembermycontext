@@ -12,11 +12,17 @@ def complete_onboarding(session: Session, user_id: UUID) -> User:
     if not user:
         raise ValueError("User not found")
     
-    user.onboarding_completed = True
-    session.add(user)
-    session.commit()
-    logger.info(f"Onboarding completed for user: {user.email}")
-    return user
+    try:
+        user.onboarding_completed = True
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+        logger.info(f"Onboarding completed for user: {user.email}")
+        return user
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Failed to complete onboarding for user {user_id}: {str(e)}")
+        raise
 
 
 def get_onboarding_status(session: Session, user_id: UUID) -> bool:

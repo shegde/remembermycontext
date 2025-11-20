@@ -69,33 +69,50 @@ def verify_email_token(session: Session, token: str) -> Optional[User]:
     if not user:
         return None
     
-    if user.verification_token_expires_at and user.verification_token_expires_at < datetime.now(timezone.utc):
-        logger.warning(f"Email verification failed: Token expired for {user.email}")
-        return None
+    if user.verification_token_expires_at:
+        expires_at = user.verification_token_expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        
+        now = datetime.now(timezone.utc)
+        if expires_at < now:
+            logger.warning(f"Email verification failed: Token expired for {user.email}")
+            return None
     
-    user.email_verified = True
-    user.verification_token = None
-    user.verification_token_expires_at = None
-    session.add(user)
-    session.commit()
-    logger.info(f"Email verified for user: {user.email}")
-    return user
+    try:
+        user.email_verified = True
+        user.verification_token = None
+        user.verification_token_expires_at = None
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+        logger.info(f"Email verified for user: {user.email}")
+        return user
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Failed to verify email for user {user.email}: {str(e)}")
+        raise
 
 
 def create_password_reset_token(session: Session, user_id: UUID) -> PasswordResetToken:
-    token_string = secrets.token_urlsafe(32)
-    expires_at = datetime.now(timezone.utc) + timedelta(hours=settings.PASSWORD_RESET_EXPIRY_HOURS)
-    
-    reset_token = PasswordResetToken(
-        token=token_string,
-        user_id=user_id,
-        expires_at=expires_at
-    )
-    session.add(reset_token)
-    session.commit()
-    session.refresh(reset_token)
-    logger.info(f"Password reset token created for user: {user_id}")
-    return reset_token
+    try:
+        token_string = secrets.token_urlsafe(32)
+        expires_at = datetime.now(timezone.utc) + timedelta(hours=settings.PASSWORD_RESET_EXPIRY_HOURS)
+        
+        reset_token = PasswordResetToken(
+            token=token_string,
+            user_id=user_id,
+            expires_at=expires_at
+        )
+        session.add(reset_token)
+        session.commit()
+        session.refresh(reset_token)
+        logger.info(f"Password reset token created for user: {user_id}")
+        return reset_token
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Failed to create password reset token for user {user_id}: {str(e)}")
+        raise
 
 
 def verify_reset_token(session: Session, token: str) -> Optional[PasswordResetToken]:
@@ -108,7 +125,12 @@ def verify_reset_token(session: Session, token: str) -> Optional[PasswordResetTo
     if not reset_token:
         return None
     
-    if reset_token.expires_at < datetime.now(timezone.utc):
+    expires_at = reset_token.expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    
+    now = datetime.now(timezone.utc)
+    if expires_at < now:
         logger.warning(f"Password reset failed: Token expired")
         return None
     
@@ -122,14 +144,42 @@ def reset_user_password(session: Session, reset_token: PasswordResetToken, new_p
     if not user:
         raise ValueError("User not found")
     
-    user.password_hash = get_password_hash(new_password)
-    reset_token.used_at = datetime.now(timezone.utc)
+    try:
+        user.password_hash = get_password_hash(new_password)
+        reset_token.used_at = datetime.now(timezone.utc)
+        
+        session.add(user)
+        session.add(reset_token)
+        session.commit()
+        session.refresh(user)
+        logger.info(f"Password reset for user: {user.email}")
+        return user
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Failed to reset password for user {reset_token.user_id}: {str(e)}")
+        raise
+
+
+def change_user_password(session: Session, user: User, current_password: str, new_password: str) -> User:
+    if not verify_password(current_password, user.password_hash):
+        logger.warning(f"Password change failed: Incorrect current password for user {user.email}")
+        raise ValueError("Current password is incorrect")
     
-    session.add(user)
-    session.add(reset_token)
-    session.commit()
-    logger.info(f"Password reset for user: {user.email}")
-    return user
+    if current_password == new_password:
+        logger.warning(f"Password change failed: New password same as current for user {user.email}")
+        raise ValueError("New password must be different from current password")
+    
+    try:
+        user.password_hash = get_password_hash(new_password)
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+        logger.info(f"Password changed successfully for user: {user.email}")
+        return user
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Failed to change password for user {user.email}: {str(e)}")
+        raise
 
 
 def request_account_deletion(session: Session, user_id: UUID) -> User:
@@ -139,11 +189,17 @@ def request_account_deletion(session: Session, user_id: UUID) -> User:
     if not user:
         raise ValueError("User not found")
     
-    user.account_deletion_requested_at = datetime.now(timezone.utc)
-    session.add(user)
-    session.commit()
-    logger.info(f"Account deletion requested for user: {user.email}")
-    return user
+    try:
+        user.account_deletion_requested_at = datetime.now(timezone.utc)
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+        logger.info(f"Account deletion requested for user: {user.email}")
+        return user
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Failed to request account deletion for user {user_id}: {str(e)}")
+        raise
 
 
 def cancel_account_deletion(session: Session, user_id: UUID) -> User:
@@ -153,11 +209,17 @@ def cancel_account_deletion(session: Session, user_id: UUID) -> User:
     if not user:
         raise ValueError("User not found")
     
-    user.account_deletion_requested_at = None
-    session.add(user)
-    session.commit()
-    logger.info(f"Account deletion cancelled for user: {user.email}")
-    return user
+    try:
+        user.account_deletion_requested_at = None
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+        logger.info(f"Account deletion cancelled for user: {user.email}")
+        return user
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Failed to cancel account deletion for user {user_id}: {str(e)}")
+        raise
 
 
 def generate_new_verification_token(session: Session, email: str) -> Optional[User]:
@@ -168,15 +230,21 @@ def generate_new_verification_token(session: Session, email: str) -> Optional[Us
     if user.email_verified:
         return user
     
-    verification_token = secrets.token_urlsafe(32)
-    verification_expires = datetime.now(timezone.utc) + timedelta(
-        hours=settings.EMAIL_VERIFICATION_EXPIRY_HOURS
-    )
-    
-    user.verification_token = verification_token
-    user.verification_token_expires_at = verification_expires
-    session.add(user)
-    session.commit()
-    logger.info(f"New verification token generated for {user.email}")
-    return user
+    try:
+        verification_token = secrets.token_urlsafe(32)
+        verification_expires = datetime.now(timezone.utc) + timedelta(
+            hours=settings.EMAIL_VERIFICATION_EXPIRY_HOURS
+        )
+        
+        user.verification_token = verification_token
+        user.verification_token_expires_at = verification_expires
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+        logger.info(f"New verification token generated for {user.email}")
+        return user
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Failed to generate verification token for {email}: {str(e)}")
+        raise
 

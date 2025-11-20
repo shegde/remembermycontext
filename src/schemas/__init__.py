@@ -5,7 +5,8 @@ from .auth import (
     EmailVerificationRequest,
     VerifyEmailRequest,
     PasswordResetRequest,
-    PasswordResetConfirm
+    PasswordResetConfirm,
+    ChangePasswordRequest
 )
 from .context import (
     ContextCreate,
@@ -27,6 +28,7 @@ __all__ = [
     "VerifyEmailRequest",
     "PasswordResetRequest",
     "PasswordResetConfirm",
+    "ChangePasswordRequest",
     "ContextCreate",
     "ContextVersionResponse",
     "ContextBoxSummary",

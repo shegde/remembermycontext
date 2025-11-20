@@ -6,6 +6,7 @@ from .user import (
     create_password_reset_token,
     verify_reset_token,
     reset_user_password,
+    change_user_password,
     request_account_deletion,
     cancel_account_deletion,
     generate_new_verification_token
@@ -30,6 +31,7 @@ __all__ = [
     "create_password_reset_token",
     "verify_reset_token",
     "reset_user_password",
+    "change_user_password",
     "request_account_deletion",
     "cancel_account_deletion",
     "create_context_version",

@@ -17,20 +17,16 @@ from ..constants import ErrorCode, ContextBox, LLM_SITES, LLM_DISPLAY_NAMES
 from ..logging_config import logger
 from ..middleware import limiter
 
-# Helper function to categorize LLM consistently
 def categorize_llm(llm_string: str) -> str:
-    """Categorize an LLM string to a display name. Returns 'Other' if not matched."""
     if not llm_string:
         return "Other"
     
     llm_lower = llm_string.lower()
     
-    # Check against LLM_DISPLAY_NAMES mapping (site patterns)
     for site, display_name in LLM_DISPLAY_NAMES.items():
         if site in llm_lower:
             return display_name
     
-    # Also check for common variations
     if 'chatgpt' in llm_lower or 'openai' in llm_lower:
         return 'ChatGPT'
     elif 'claude' in llm_lower or 'anthropic' in llm_lower:
@@ -45,10 +41,6 @@ def categorize_llm(llm_string: str) -> str:
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
-# ============================================================================
-# AUTHENTICATION
-# ============================================================================
-
 @router.post("/login", response_model=AdminTokenResponse)
 @limiter.limit("5/minute")
 def admin_login(
@@ -56,7 +48,6 @@ def admin_login(
     credentials: AdminLogin,
     session: Session = Depends(get_session)
 ):
-    """Admin login endpoint"""
     admin = authenticate_admin(session, credentials.username, credentials.password)
     if not admin:
         raise HTTPException(
@@ -75,12 +66,7 @@ def admin_login(
     return AdminTokenResponse(access_token=access_token)
 
 
-# ============================================================================
-# HELPER FUNCTIONS
-# ============================================================================
-
 def parse_time_range(time_range: str) -> tuple[datetime, datetime]:
-    """Parse time_range parameter into start/end datetimes"""
     now = datetime.now(timezone.utc)
     
     if time_range == "7d":
@@ -98,20 +84,14 @@ def parse_time_range(time_range: str) -> tuple[datetime, datetime]:
 
 
 def safe_divide(numerator: float, denominator: float) -> float:
-    """Safe division that returns 0 if denominator is 0"""
     return numerator / denominator if denominator > 0 else 0
 
 
 def calculate_percentage_change(current: float, previous: float) -> float:
-    """Calculate percentage change"""
     if previous == 0:
         return 100.0 if current > 0 else 0.0
     return round(((current - previous) / previous) * 100, 1)
 
-
-# ============================================================================
-# OVERVIEW ENDPOINTS
-# ============================================================================
 
 analytics_router = APIRouter(prefix="/analytics")
 
@@ -122,7 +102,6 @@ def get_overview_kpis(
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get overview KPIs with change percentages"""
     start_date, end_date = parse_time_range(time_range)
     prev_start = start_date - (end_date - start_date)
     
@@ -273,7 +252,7 @@ def get_overview_insights(
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get key insights based on real data - matching the expected format"""
+    
     start_date, end_date = parse_time_range(time_range)
     prev_start = start_date - (end_date - start_date)
     
@@ -390,7 +369,7 @@ def get_overview_growth_timeline(
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get daily growth timeline for the specified time range"""
+    
     start_date, end_date = parse_time_range(time_range)
     
     # Get daily data
@@ -455,7 +434,7 @@ def get_context_box_distribution(
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get context box usage distribution"""
+    
     start_date, end_date = parse_time_range(time_range)
     
     # Get copies per box
@@ -493,7 +472,7 @@ def get_llm_distribution(
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get LLM platform distribution"""
+    
     start_date, end_date = parse_time_range(time_range)
     
     # Get LLM usage
@@ -545,7 +524,7 @@ def get_user_lifecycle(
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get user lifecycle distribution - Active and Dormant only"""
+    
     now = datetime.now(timezone.utc)
     week_ago = now - timedelta(days=7)
     
@@ -574,7 +553,7 @@ def get_performance_health(
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get performance health metrics from analytics events"""
+    
     week_ago = datetime.now(timezone.utc) - timedelta(days=7)
     
     retrieval_events = session.exec(
@@ -618,9 +597,7 @@ def get_performance_health(
     }
 
 
-# ============================================================================
 # ACQUISITION ENDPOINTS
-# ============================================================================
 
 @analytics_router.get("/acquisition/metrics")
 def get_acquisition_metrics(
@@ -628,7 +605,7 @@ def get_acquisition_metrics(
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get acquisition metrics (DAU, WAU, MAU)"""
+    
     now = datetime.now(timezone.utc)
     
     # Total registered users
@@ -707,7 +684,7 @@ def get_acquisition_funnel(
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get signup conversion funnel data"""
+    
     start_date, end_date = parse_time_range(time_range)
     
     accounts = session.exec(
@@ -773,7 +750,7 @@ def get_acquisition_growth_timeline(
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get cumulative user growth timeline"""
+    
     start_date, end_date = parse_time_range(time_range)
     
     dates = []
@@ -811,7 +788,7 @@ def get_acquisition_churn(
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get churn metrics"""
+    
     now = datetime.now(timezone.utc)
     
     total_users = session.exec(select(func.count(User.id))).one() or 0
@@ -879,7 +856,7 @@ def get_signup_patterns(
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get signup patterns by day and hour - from User.created_at (actual signup timestamps in DB)"""
+    
     start_date, end_date = parse_time_range(time_range)
     
     # Get all signups in range - using User.created_at which is the actual signup timestamp
@@ -904,9 +881,7 @@ def get_signup_patterns(
     }
 
 
-# ============================================================================
 # ENGAGEMENT ENDPOINTS
-# ============================================================================
 
 @analytics_router.get("/engagement/metrics")
 def get_engagement_metrics(
@@ -914,7 +889,7 @@ def get_engagement_metrics(
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get engagement metrics"""
+    
     start_date, end_date = parse_time_range(time_range)
     prev_start = start_date - (end_date - start_date)
     
@@ -970,7 +945,7 @@ def get_copy_activity_timeline(
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get daily copy activity timeline"""
+    
     start_date, end_date = parse_time_range(time_range)
     
     dates = []
@@ -1020,7 +995,7 @@ def get_context_box_usage(
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get context box usage breakdown"""
+    
     start_date, end_date = parse_time_range(time_range)
     
     box_data = {}
@@ -1053,7 +1028,7 @@ def get_version_stats(
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get version statistics"""
+    
     total_versions = session.exec(select(func.count(ContextVersion.id))).one() or 0
     
     # Unique users with versions
@@ -1120,7 +1095,7 @@ def get_power_users(
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get top power users (default: top 5)"""
+    
     start_date, end_date = parse_time_range(time_range)
     
     # Get users with most copies - limit to top 5
@@ -1177,7 +1152,7 @@ def get_onboarding_funnel(
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get onboarding completion funnel - simplified to just completed/not completed"""
+    
     total_users = session.exec(select(func.count(User.id))).one() or 0
     
     # Get users who completed onboarding
@@ -1224,9 +1199,7 @@ def get_onboarding_funnel(
     }
 
 
-# ============================================================================
 # FEATURES ENDPOINTS
-# ============================================================================
 
 @analytics_router.get("/features/metrics")
 def get_features_metrics(
@@ -1234,7 +1207,7 @@ def get_features_metrics(
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get feature adoption metrics"""
+    
     start_date, end_date = parse_time_range(time_range)
     
     total_users = session.exec(select(func.count(User.id))).one() or 0
@@ -1290,7 +1263,7 @@ def get_features_adoption_breakdown(
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get detailed feature adoption with real calculations"""
+    
     start_date, end_date = parse_time_range(time_range)
     period_days = (end_date - start_date).days
     prev_start = start_date - timedelta(days=period_days)
@@ -1463,7 +1436,7 @@ def get_boxes_per_user(
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get distribution of populated boxes per user"""
+    
     # Count distinct boxes per user
     user_box_counts = session.exec(
         select(
@@ -1493,7 +1466,7 @@ def get_version_distribution(
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get distribution of version counts per user"""
+    
     # Count versions per user
     user_version_counts = session.exec(
         select(
@@ -1539,7 +1512,7 @@ def get_box_ratio(
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get empty vs populated box ratio"""
+    
     # Total context boxes created (total ContextVersion records)
     total_boxes = session.exec(select(func.count(ContextVersion.id))).one() or 0
     
@@ -1571,7 +1544,7 @@ def get_power_user_stats(
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get power user characteristics"""
+    
     total_users = session.exec(select(func.count(User.id))).one() or 0
     start_date, end_date = parse_time_range(time_range)
     
@@ -1621,7 +1594,7 @@ def get_features_adoption_timeline(
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get feature adoption timeline"""
+    
     start_date, end_date = parse_time_range(time_range)
     
     dates = []
@@ -1679,9 +1652,7 @@ def get_features_adoption_timeline(
     }
 
 
-# ============================================================================
 # LLM ENDPOINTS
-# ============================================================================
 
 @analytics_router.get("/llm/metrics")
 def get_llm_metrics(
@@ -1689,7 +1660,7 @@ def get_llm_metrics(
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get LLM integration metrics"""
+    
     start_date, end_date = parse_time_range(time_range)
     prev_start = start_date - (end_date - start_date)
     
@@ -1789,7 +1760,7 @@ def get_llm_platform_distribution(
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get LLM platform pie chart distribution"""
+    
     start_date, end_date = parse_time_range(time_range)
     
     llm_data = defaultdict(int)
@@ -1834,7 +1805,7 @@ def get_llm_copies_by_platform(
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get detailed LLM platform usage"""
+    
     start_date, end_date = parse_time_range(time_range)
     
     llm_data = defaultdict(int)
@@ -1874,7 +1845,7 @@ def get_llm_usage_trends(
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get LLM usage trends over time (stacked area chart)"""
+    
     start_date, end_date = parse_time_range(time_range)
     
     dates = []
@@ -1884,14 +1855,11 @@ def get_llm_usage_trends(
     perplexity_data = []
     others_data = []
     
-    from ..constants import LLM_DISPLAY_NAMES
-    
     current = start_date
     while current < end_date:
         next_day = current + timedelta(days=1)
         dates.append(current.strftime("%Y-%m-%d"))
         
-        # Get copies per LLM for this day
         versions = session.exec(
             select(ContextVersion.last_llm_used, func.sum(ContextVersion.uses_count))
             .where(ContextVersion.last_used_at >= current)
@@ -1906,13 +1874,12 @@ def get_llm_usage_trends(
                 display_name = categorize_llm(llm)
                 if display_name != "Other":
                     day_data[display_name] += int(count) if count else 0
-                # Skip "Other" - don't track it
         
         chatgpt_data.append(day_data.get('ChatGPT', 0))
         claude_data.append(day_data.get('Claude', 0))
         gemini_data.append(day_data.get('Gemini', 0))
         perplexity_data.append(day_data.get('Perplexity', 0))
-        others_data.append(0)  # No longer tracking "Other"
+        others_data.append(0)
         
         current = next_day
     
@@ -1932,13 +1899,10 @@ def get_llm_platform_details(
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get detailed LLM platform statistics"""
+    
     start_date, end_date = parse_time_range(time_range)
     prev_start = start_date - (end_date - start_date)
     
-    from ..constants import LLM_DISPLAY_NAMES, LLM_SITES
-    
-    # Get all LLM usage data
     llm_usage = session.exec(
         select(
             ContextVersion.last_llm_used,
@@ -2040,7 +2004,7 @@ def get_llm_user_diversity(
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get distribution of users by number of LLMs they use"""
+    
     start_date, end_date = parse_time_range(time_range)
     
     user_llm_counts = session.exec(
@@ -2075,9 +2039,7 @@ def get_llm_user_diversity(
     return {"distribution": result}
 
 
-# ============================================================================
 # DB VIEW ENDPOINTS
-# ============================================================================
 
 @analytics_router.get("/dbview/{table_name}")
 def get_db_view(
@@ -2087,7 +2049,7 @@ def get_db_view(
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get paginated database view for admin"""
+    
     if page < 1:
         page = 1
     if page_size < 1 or page_size > 100:
@@ -2278,14 +2240,10 @@ def get_db_view(
         raise HTTPException(status_code=404, detail=f"Table '{table_name}' not found")
 
 
-# ============================================================================
 # REMOVED: MONETIZATION, RETENTION, CONTENT ENDPOINTS
 # These tabs were removed from the admin UI as per client request
-# ============================================================================
 
-# ============================================================================
 # PERFORMANCE & RETENTION & CONTENT ENDPOINTS (Simplified)
-# ============================================================================
 
 @analytics_router.get("/performance/metrics")
 def get_performance_metrics(
@@ -2293,7 +2251,7 @@ def get_performance_metrics(
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get performance metrics KPIs"""
+    
     start_date, end_date = parse_time_range(time_range)
     
     retrieval_events = session.exec(
@@ -2357,7 +2315,7 @@ def get_performance_retrieval_trends(
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get retrieval time trends over time"""
+    
     start_date, end_date = parse_time_range(time_range)
     
     dates = []
@@ -2423,7 +2381,7 @@ def get_performance_percentiles(
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get retrieval time percentiles (P50, P95, P99)"""
+    
     start_date, end_date = parse_time_range(time_range)
     
     retrieval_events = session.exec(
@@ -2473,7 +2431,7 @@ def get_performance_by_box(
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get retrieval time breakdown by box type"""
+    
     start_date, end_date = parse_time_range(time_range)
     
     retrieval_events = session.exec(
@@ -2515,7 +2473,7 @@ def get_performance_by_llm(
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get retrieval time breakdown by LLM platform"""
+    
     start_date, end_date = parse_time_range(time_range)
     
     retrieval_events = session.exec(
@@ -2569,7 +2527,7 @@ def get_performance_slow_operations(
     admin: dict = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """Get slow retrieval operations (>1s, >5s)"""
+    
     start_date, end_date = parse_time_range(time_range)
     
     retrieval_events = session.exec(

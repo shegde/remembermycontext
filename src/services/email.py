@@ -1,8 +1,19 @@
+from pathlib import Path
 import resend
 from ..config import settings
 from ..logging_config import logger
 
 resend.api_key = settings.RESEND_API_KEY
+
+TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
+
+
+def load_email_template(template_name: str) -> str:
+    template_path = TEMPLATES_DIR / template_name
+    if template_path.exists():
+        return template_path.read_text(encoding="utf-8")
+    logger.warning(f"Email template not found: {template_name}")
+    return ""
 
 
 class EmailService:
@@ -18,33 +29,15 @@ class EmailService:
         try:
             verification_url = f"{settings.FRONTEND_URL}/verify-email?token={verification_token}"
             
-            html_content = f"""
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="utf-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            </head>
-            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-                    <h1 style="color: #007bff; margin: 0;">Verify Your Email</h1>
-                </div>
-                <p>Thank you for signing up for RememberMyContext!</p>
-                <p>Please click the button below to verify your email address:</p>
-                <div style="text-align: center; margin: 30px 0;">
-                    <a href="{verification_url}" style="background: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block; font-weight: bold;">Verify Email</a>
-                </div>
-                <p>Or copy and paste this link into your browser:</p>
-                <p style="word-break: break-all; color: #666; font-size: 12px;">{verification_url}</p>
-                <p style="color: #666; font-size: 12px; margin-top: 30px;">This link will expire in {settings.EMAIL_VERIFICATION_EXPIRY_HOURS} hours.</p>
-                <p style="color: #666; font-size: 12px;">If you didn't create an account, please ignore this email.</p>
-            </body>
-            </html>
-            """
+            template = load_email_template("email_verification.html")
+            if not template:
+                logger.error("Failed to load email verification template")
+                return False
             
-            # Use FROM_EMAIL from environment variables
+            html_content = template.replace("{{VERIFICATION_URL}}", verification_url)
+            html_content = html_content.replace("{{EXPIRY_HOURS}}", str(settings.EMAIL_VERIFICATION_EXPIRY_HOURS))
+            
             from_email = settings.FROM_EMAIL
-            logger.info(f"Using FROM_EMAIL: {from_email}")
             
             params = {
                 "from": from_email,
@@ -73,33 +66,15 @@ class EmailService:
         try:
             reset_url = f"{settings.FRONTEND_URL}/reset-password?token={reset_token}"
             
-            html_content = f"""
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="utf-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            </head>
-            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-                    <h1 style="color: #dc3545; margin: 0;">Reset Your Password</h1>
-                </div>
-                <p>You requested to reset your password for RememberMyContext.</p>
-                <p>Click the button below to reset your password:</p>
-                <div style="text-align: center; margin: 30px 0;">
-                    <a href="{reset_url}" style="background: #dc3545; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block; font-weight: bold;">Reset Password</a>
-                </div>
-                <p>Or copy and paste this link into your browser:</p>
-                <p style="word-break: break-all; color: #666; font-size: 12px;">{reset_url}</p>
-                <p style="color: #666; font-size: 12px; margin-top: 30px;">This link will expire in {settings.PASSWORD_RESET_EXPIRY_HOURS} hour(s).</p>
-                <p style="color: #666; font-size: 12px;">If you didn't request a password reset, please ignore this email.</p>
-            </body>
-            </html>
-            """
+            template = load_email_template("email_password_reset.html")
+            if not template:
+                logger.error("Failed to load password reset email template")
+                return False
             
-            # Use FROM_EMAIL from environment variables
+            html_content = template.replace("{{RESET_URL}}", reset_url)
+            html_content = html_content.replace("{{EXPIRY_HOURS}}", str(settings.PASSWORD_RESET_EXPIRY_HOURS))
+            
             from_email = settings.FROM_EMAIL
-            logger.info(f"Using FROM_EMAIL: {from_email}")
             
             params = {
                 "from": from_email,

@@ -136,7 +136,7 @@ Example:
 - Looking for leadership opportunities" style="height: 100%; min-height: 250px;"></textarea>
                 </div>
                 <div style="display: flex; gap: 10px;">
-                    <button id="edit-cancel-btn" class="btn btn-secondary" style="flex: 1;">Cancel</button>
+                    <button id="edit-cancel-btn" class="btn btn-secondary" style="flex: 1; background: #6c757d; color: white;">Cancel</button>
                     <button id="edit-save-btn" class="btn btn-success" style="flex: 1;">Save</button>
                 </div>
             </div>
@@ -196,7 +196,7 @@ Example:
                     Context boxes organize your information by category. Start by opening one of your default boxes.
                 </p>
                 <div style="display: flex; gap: 10px; padding: 0 20px;">
-                    <button id="onboarding-1-skip" class="btn btn-secondary" style="flex: 1;">Skip</button>
+                    <button id="onboarding-1-skip" class="btn btn-secondary" style="flex: 1; background: #6c757d; color: white;">Skip</button>
                     <button id="onboarding-1-next" class="btn btn-primary" style="flex: 1;">Next</button>
                 </div>
             </div>
@@ -213,8 +213,8 @@ Example:
                     Paste your context information and save it. This creates version v0 that you can use across any LLM.
                 </p>
                 <div style="display: flex; gap: 10px; padding: 0 20px;">
-                    <button id="onboarding-2-back" class="btn btn-secondary" style="flex: 1;">Back</button>
-                    <button id="onboarding-2-skip" class="btn btn-secondary" style="flex: 1;">Skip</button>
+                    <button id="onboarding-2-back" class="btn btn-secondary" style="flex: 1; background: #6c757d; color: white;">Back</button>
+                    <button id="onboarding-2-skip" class="btn btn-secondary" style="flex: 1; background: #6c757d; color: white;">Skip</button>
                     <button id="onboarding-2-next" class="btn btn-primary" style="flex: 1;">Next</button>
                 </div>
             </div>
@@ -231,8 +231,8 @@ Example:
                     Open ChatGPT, Claude, or any LLM. Click the extension, select your context box, and it copies automatically to your clipboard. Paste and go!
                 </p>
                 <div style="display: flex; gap: 10px; padding: 0 20px;">
-                    <button id="onboarding-3-back" class="btn btn-secondary" style="flex: 1;">Back</button>
-                    <button id="onboarding-3-skip" class="btn btn-secondary" style="flex: 1;">Skip</button>
+                    <button id="onboarding-3-back" class="btn btn-secondary" style="flex: 1; background: #6c757d; color: white;">Back</button>
+                    <button id="onboarding-3-skip" class="btn btn-secondary" style="flex: 1; background: #6c757d; color: white;">Skip</button>
                     <button id="onboarding-3-complete" class="btn btn-success" style="flex: 1;">Get Started</button>
                 </div>
             </div>
@@ -250,7 +250,7 @@ Example:
                     <strong>Didn't receive the email?</strong><br>
                     Check your spam folder or request a new verification link.
                 </div>
-                <button id="resend-verification-btn" class="btn btn-secondary" style="width: 100%; margin-bottom: 10px;">Resend Verification Email</button>
+                <button id="resend-verification-btn" class="btn btn-primary" style="width: 100%; margin-bottom: 10px; background: #007bff; color: white;">Resend Verification Email</button>
                 <button id="verification-back-btn" class="btn btn-link" style="width: 100%;">Back to Login</button>
             </div>
         </div>
@@ -300,6 +300,40 @@ Example:
             </div>
         </div>
 
+        <div id="change-password-screen" class="screen">
+            <div class="popup-header" style="background: #4a5568; color: white; display: flex; align-items: center;">
+                <button id="change-password-back-btn" class="back-btn" style="background: rgba(255,255,255,0.2); border: none; color: white; width: 30px; height: 30px; border-radius: 4px; margin-right: 10px; cursor: pointer;">←</button>
+                <h2 style="margin: 0; font-size: 16px; flex: 1;">Change Password</h2>
+            </div>
+            <div class="popup-body" style="background: white;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <div style="font-size: 48px; margin-bottom: 15px;">🔒</div>
+                    <p style="color: #666; line-height: 1.6;">
+                        Enter your current password and choose a new one.
+                    </p>
+                </div>
+                <div class="form-group">
+                    <label>Current Password</label>
+                    <input type="password" id="change-password-current" placeholder="Enter current password">
+                </div>
+                <div class="form-group">
+                    <label>New Password</label>
+                    <input type="password" id="change-password-new" placeholder="Enter new password">
+                </div>
+                <div class="form-group">
+                    <label>Confirm New Password</label>
+                    <input type="password" id="change-password-confirm" placeholder="Confirm new password">
+                </div>
+                <div class="info-box" style="font-size: 12px; margin-bottom: 20px;">
+                    <strong>Password Requirements:</strong><br>
+                    • At least 8 characters long<br>
+                    • Must contain at least one letter<br>
+                    • Must contain at least one digit
+                </div>
+                <button id="change-password-submit" class="btn btn-primary" style="width: 100%;">Change Password</button>
+            </div>
+        </div>
+
         <div id="settings-screen" class="screen">
             <div class="popup-header" style="background: #4a5568; color: white; display: flex; align-items: center;">
                 <button id="settings-back-btn" class="back-btn" style="background: rgba(255,255,255,0.2); border: none; color: white; width: 30px; height: 30px; border-radius: 4px; margin-right: 10px; cursor: pointer;">←</button>
@@ -314,8 +348,8 @@ Example:
                 <div style="border-top: 1px solid #eee; padding-top: 20px; margin-bottom: 25px;">
                     <h4 style="margin-bottom: 15px; font-size: 16px; color: #333;">Account Management</h4>
                     <div style="margin-bottom: 15px;">
-                        <button id="settings-logout-btn" class="btn btn-secondary" style="width: 100%; background: #6c757d; color: white; padding: 12px; margin-bottom: 10px;">Logout</button>
-                        <button id="settings-forgot-password-btn" class="btn btn-link" style="width: 100%; padding: 12px; color: #007bff; text-decoration: underline; background: none; border: none;">Forgot Password?</button>
+                        <button id="settings-logout-btn" class="btn btn-secondary" style="width: 100%; background: #007bff; color: white; padding: 12px; margin-bottom: 10px;">Logout</button>
+                        <button id="settings-reset-password-btn" class="btn btn-link" style="width: 100%; padding: 12px; color: #007bff; text-decoration: underline; background: none; border: none;">Reset Password</button>
                     </div>
                 </div>
 

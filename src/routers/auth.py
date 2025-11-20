@@ -9,12 +9,15 @@ from ..crud import (
     create_password_reset_token,
     verify_reset_token,
     reset_user_password,
+    change_user_password,
     request_account_deletion,
     cancel_account_deletion,
     get_user_by_email,
     generate_new_verification_token
 )
 from ..services import create_access_token, get_current_user
+from ..services.auth import verify_password
+from ..services.email import email_service
 from ..models import User
 from ..schemas import (
     UserRegister,
@@ -23,7 +26,8 @@ from ..schemas import (
     EmailVerificationRequest,
     VerifyEmailRequest,
     PasswordResetRequest,
-    PasswordResetConfirm
+    PasswordResetConfirm,
+    ChangePasswordRequest
 )
 from ..constants import ErrorCode
 from ..config import settings
@@ -50,7 +54,6 @@ def register(request: Request, user_data: UserRegister, session: Session = Depen
     
     user = create_user(session, user_data.email, user_data.password)
     
-    # If email verification is required, inform user
     if settings.EMAIL_VERIFICATION_REQUIRED and not user.email_verified:
         return {
             "ok": True,
@@ -65,13 +68,31 @@ def register(request: Request, user_data: UserRegister, session: Session = Depen
 @router.post("/login", response_model=TokenResponse)
 @limiter.limit("60/minute")
 def login(request: Request, user_data: UserLogin, session: Session = Depends(get_session)):
-    user = authenticate_user(session, user_data.email, user_data.password)
+    user = get_user_by_email(session, user_data.email)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={
-                "message": "Incorrect email or password. If email verification is required, please verify your email first.",
+                "message": "Incorrect email or password",
                 "error_code": ErrorCode.INVALID_CREDENTIALS
+            }
+        )
+    
+    if not verify_password(user_data.password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "message": "Incorrect email or password",
+                "error_code": ErrorCode.INVALID_CREDENTIALS
+            }
+        )
+    
+    if settings.EMAIL_VERIFICATION_REQUIRED and not user.email_verified:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "message": "Please verify your email before logging in",
+                "error_code": ErrorCode.EMAIL_NOT_VERIFIED
             }
         )
     
@@ -113,7 +134,6 @@ def forgot_password(
     user = get_user_by_email(session, reset_request.email)
     if user:
         reset_token = create_password_reset_token(session, user.id)
-        from ..services.email import email_service
         email_service.send_password_reset_email(user.email, reset_token.token)
         logger.info(f"Password reset token created for {user.email}")
     
@@ -149,6 +169,25 @@ def reset_password(
     
     reset_user_password(session, reset_token, reset_data.new_password)
     return {"ok": True, "message": "Password reset successfully"}
+
+
+@router.post("/change-password", status_code=status.HTTP_200_OK)
+def change_password(
+    password_data: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    try:
+        change_user_password(session, current_user, password_data.current_password, password_data.new_password)
+        return {"ok": True, "message": "Password changed successfully"}
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "message": str(e),
+                "error_code": ErrorCode.INVALID_CREDENTIALS
+            }
+        )
 
 
 @router.delete("/request-deletion", status_code=status.HTTP_200_OK)
@@ -192,8 +231,6 @@ def resend_verification(
             "message": "Email is already verified"
         }
     
-    # Send verification email
-    from ..services.email import email_service
     if user.verification_token:
         email_service.send_verification_email(user.email, user.verification_token)
         logger.info(f"Verification email resent to {user.email}")
