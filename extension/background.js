@@ -3,7 +3,7 @@ chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === 'install' || details.reason === 'update') {
     // Track installation event
     chrome.storage.local.get(['apiBase'], (result) => {
-      const API_BASE = result.apiBase || 'https://remembermycontext-api.onrender.com/api/v1';
+      const API_BASE = result.apiBase || 'https://remembermycontexttest.onrender.com/api/v1';
       
       fetch(`${API_BASE}/analytics`, {
         method: 'POST',

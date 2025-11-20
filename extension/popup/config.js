@@ -1,7 +1,7 @@
 const CONFIG_STORAGE_KEY = 'remembermycontext_config';
 
 const DEFAULT_CONFIG = {
-    apiBaseUrl: '',
+    apiBaseUrl: 'https://remembermycontexttest.onrender.com/api/v1',
     isProduction: true,
     calendlyLink: ''
 };
@@ -22,19 +22,15 @@ async function getConfig() {
 }
 
 function detectEnvironment() {
+    // For Chrome extension, always use production by default
+    // Users can manually switch to dev if needed
     if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id) {
-        const isDev = window.location.hostname === 'localhost' || 
-                      window.location.hostname === '127.0.0.1' ||
-                      window.location.protocol === 'chrome-extension:';
-        
-        if (isDev) {
-            return {
-                apiBaseUrl: 'http://localhost:8000/api/v1',
-                isProduction: false
-            };
-        }
+        // Check if user has explicitly set dev mode
+        // For now, default to production
+        return DEFAULT_CONFIG;
     }
     
+    // Fallback for non-extension contexts
     return DEFAULT_CONFIG;
 }
 

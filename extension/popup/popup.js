@@ -30,6 +30,22 @@ function getLLMName(hostname) {
     return null;
 }
 
+// Helper function to handle API calls with automatic logout on 401
+async function apiCall(url, options = {}) {
+    const response = await fetch(url, options);
+    
+    // If unauthorized, logout and redirect to login
+    if (response.status === 401 || response.status === 403) {
+        if (currentUser) {
+            await handleLogout();
+            showToast('Session expired. Please login again.', 'error');
+        }
+        return null;
+    }
+    
+    return response;
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     await initializeConfig();
     await initializeApp();
@@ -50,13 +66,37 @@ async function initializeConfig() {
 async function initializeApp() {
     const user = await chrome.storage.local.get(['user']);
     if (user.user && user.user.access_token) {
-        currentUser = user.user;
-        const onboardingStatus = await checkOnboardingStatus();
-        if (!onboardingStatus || !onboardingStatus.completed) {
-            showScreen('onboarding-1');
-        } else {
-            showScreen('main');
-            await loadContexts();
+        // Validate token by making a test request
+        try {
+            const testResponse = await fetch(`${API_BASE}/contexts`, {
+                headers: { 'Authorization': `Bearer ${user.user.access_token}` }
+            });
+            
+            if (testResponse.ok || testResponse.status === 404) {
+                // Token is valid (404 is ok, means no contexts yet)
+                currentUser = user.user;
+                const onboardingStatus = await checkOnboardingStatus();
+                if (!onboardingStatus || !onboardingStatus.completed) {
+                    showScreen('onboarding-1');
+                } else {
+                    showScreen('main');
+                    await loadContexts();
+                }
+            } else if (testResponse.status === 401 || testResponse.status === 403) {
+                // Token expired or invalid
+                await handleLogout();
+                showScreen('welcome');
+            } else {
+                // Other error, try to continue but might need to login
+                currentUser = user.user;
+                showScreen('main');
+                await loadContexts();
+            }
+        } catch (error) {
+            // Network error or other issue - clear and show welcome
+            console.error('Error validating token:', error);
+            await handleLogout();
+            showScreen('welcome');
         }
     } else {
         showScreen('welcome');
@@ -295,7 +335,10 @@ async function handleLogout() {
 }
 
 async function loadContexts() {
-    if (!currentUser) return;
+    if (!currentUser) {
+        showScreen('welcome');
+        return;
+    }
     
     try {
         const response = await fetch(`${API_BASE}/contexts`, {
@@ -309,8 +352,17 @@ async function loadContexts() {
                 contextsCache[context.box_name] = context;
             });
             updateContextBoxes();
+        } else if (response.status === 401 || response.status === 403) {
+            // Token expired or invalid - redirect to login
+            await handleLogout();
+            showToast('Session expired. Please login again.', 'error');
         }
     } catch (error) {
+        console.error('Error loading contexts:', error);
+        // On error, check if it's an auth issue
+        if (!currentUser || !currentUser.access_token) {
+            showScreen('welcome');
+        }
     }
 }
 

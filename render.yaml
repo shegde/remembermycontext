@@ -6,7 +6,7 @@ services:
     startCommand: "uvicorn src.main:app --host 0.0.0.0 --port $PORT"
     envVars:
       - key: PYTHON_VERSION
-        value: 3.10.0
+        value: 3.12.0
       - key: DATABASE_URL
         fromDatabase:
           name: remembermycontext-db
@@ -27,6 +27,32 @@ services:
         value: 60
       - key: MAX_CONTEXT_LENGTH
         value: 50000
+      - key: RESEND_API_KEY
+        sync: false
+      - key: FROM_EMAIL
+        value: admin@remembermycontext.com
+      - key: FRONTEND_URL
+        sync: false
+      - key: EMAIL_VERIFICATION_REQUIRED
+        value: false
+      - key: EMAIL_VERIFICATION_EXPIRY_HOURS
+        value: 24
+      - key: PASSWORD_RESET_EXPIRY_HOURS
+        value: 1
+      - key: ACCOUNT_DELETION_GRACE_DAYS
+        value: 7
+      - key: ENABLE_ONBOARDING
+        value: true
+      - key: ENABLE_PASSWORD_RESET
+        value: true
+      - key: CALENDLY_LINK
+        sync: false
+      - key: ADMIN_USERNAME
+        value: admin
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
 
 databases:
   - name: remembermycontext-db

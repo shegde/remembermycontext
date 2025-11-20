@@ -11,7 +11,7 @@ class Settings:
     FERNET_KEY: str = os.getenv("FERNET_KEY", "")
     API_PREFIX: str = os.getenv("API_PREFIX", "/api/v1")
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "10080"))
     ECHO_SQL: bool = os.getenv("ECHO_SQL", "false").lower() == "true"
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
     RATE_LIMIT_PER_MINUTE: int = int(os.getenv("RATE_LIMIT_PER_MINUTE", "60"))
