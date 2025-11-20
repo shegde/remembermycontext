@@ -1,14 +1,20 @@
 const CONFIG_STORAGE_KEY = 'remembermycontext_config';
 
-const DEFAULT_CONFIG = {
-    apiBaseUrl: 'http://localhost:8000/api/v1',
-    isProduction: false,
-    calendlyLink: ''
-};
+// ============================================
+// ENVIRONMENT SWITCH - Change this to switch between local and production
+// ============================================
+const USE_LOCAL = false;  // Set to true for localhost, false for production
+// ============================================
 
 const PRODUCTION_CONFIG = {
     apiBaseUrl: 'https://remembermycontexttest.onrender.com/api/v1',
     isProduction: true,
+    calendlyLink: ''
+};
+
+const LOCAL_CONFIG = {
+    apiBaseUrl: 'http://localhost:8000/api/v1',
+    isProduction: false,
     calendlyLink: ''
 };
 
@@ -23,16 +29,12 @@ async function getConfig() {
         await chrome.storage.local.set({ [CONFIG_STORAGE_KEY]: detectedConfig });
         return detectedConfig;
     } catch (error) {
-        return DEFAULT_CONFIG;
+        return USE_LOCAL ? LOCAL_CONFIG : PRODUCTION_CONFIG;
     }
 }
 
 function detectEnvironment() {
-    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id) {
-        return DEFAULT_CONFIG;
-    }
-    
-    return DEFAULT_CONFIG;
+    return USE_LOCAL ? LOCAL_CONFIG : PRODUCTION_CONFIG;
 }
 
 async function updateConfig(newConfig) {

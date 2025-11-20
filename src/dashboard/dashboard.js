@@ -221,6 +221,11 @@ function displayAnalytics(analytics, contexts) {
     
     const totalVersions = contexts.reduce((sum, context) => sum + (context.versions_count || 0), 0);
     
+    const normalizeSite = (site) => {
+        if (!site) return '';
+        return site.replace(/^www\./i, '').toLowerCase();
+    };
+    
     const sitesMap = {};
     analytics.forEach(event => {
         const site = event.event_metadata?.site;
@@ -229,11 +234,14 @@ function displayAnalytics(analytics, contexts) {
                           eventType === 'context_inserted' || eventType === 'context_copied';
         
         if (site && isUseEvent) {
-            const siteDomain = site.toLowerCase();
-            const isLLMSite = LLM_SITES.some(llmSite => siteDomain.includes(llmSite));
+            const normalizedSite = normalizeSite(site);
+            const isLLMSite = LLM_SITES.some(llmSite => {
+                const cleanSite = llmSite.replace(/^www\./i, '');
+                return normalizedSite.includes(cleanSite);
+            });
             
             if (isLLMSite) {
-                sitesMap[site] = (sitesMap[site] || 0) + 1;
+                sitesMap[normalizedSite] = (sitesMap[normalizedSite] || 0) + 1;
             }
         }
     });
@@ -241,7 +249,7 @@ function displayAnalytics(analytics, contexts) {
     const llmApps = Object.keys(sitesMap).length;
     const llmAppsList = Object.entries(sitesMap)
         .sort((a, b) => b[1] - a[1])
-        .map(([site, count]) => `${site} (${count})`)
+        .map(([site, count]) => `${site} (${count} uses)`)
         .join(', ') || 'No LLM apps used yet';
     
     document.getElementById('total-copies').textContent = totalCopies + totalInserts;
@@ -279,6 +287,11 @@ function getActivityDescription(activity) {
     const boxName = metadata.box_name || metadata.box || 'Context';
     const version = metadata.version_number ?? '?';
     
+    const normalizeSite = (site) => {
+        if (!site) return '';
+        return site.replace(/^www\./i, '');
+    };
+    
     switch (eventType) {
         case 'copy':
         case 'context_copied':
@@ -288,12 +301,15 @@ function getActivityDescription(activity) {
             return `✨ ${boxName} v${version} created`;
         case 'insert':
         case 'context_inserted':
-            const site = metadata.site ? ` on ${metadata.site}` : '';
-            return `🚀 ${boxName} v${version} inserted${site}`;
+            const siteInsert = metadata.site ? ` on ${normalizeSite(metadata.site)}` : '';
+            return `🚀 ${boxName} v${version} inserted${siteInsert}`;
+        case 'context_retrieved':
+            const siteRetrieved = metadata.site ? ` on ${normalizeSite(metadata.site)}` : '';
+            return `🔍 ${boxName} v${version} retrieved${siteRetrieved}`;
         case 'context_used':
             return `📌 ${boxName} v${version} used`;
         default:
-            return `${eventType}: ${boxName} v${version}`;
+            return `📝 ${boxName} v${version} - ${eventType}`;
     }
 }
 
@@ -461,7 +477,8 @@ function showVersionsModal(boxName, versions) {
         if (version.last_used_at) {
             const lastUsedDate = formatDateTime(version.last_used_at);
             if (version.last_llm_used && version.last_llm_used.trim()) {
-                lastUsedText = `Last used on ${version.last_llm_used} at ${lastUsedDate}`;
+                const normalizedLLM = version.last_llm_used.replace(/^www\./i, '');
+                lastUsedText = `Last used on ${normalizedLLM} at ${lastUsedDate}`;
             } else {
                 lastUsedText = `Last used at ${lastUsedDate}`;
             }

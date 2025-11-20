@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
+from fastapi.responses import StreamingResponse
+import csv
+import io
 from sqlmodel import Session, select, func
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List, Optional
@@ -21,20 +24,16 @@ def categorize_llm(llm_string: str) -> str:
     if not llm_string:
         return "Other"
     
-    llm_lower = llm_string.lower()
+    llm_lower = llm_string.lower().strip()
     
-    for site, display_name in LLM_DISPLAY_NAMES.items():
-        if site in llm_lower:
+    llm_lower_clean = llm_lower.replace('https://', '').replace('http://', '').replace('www.', '').split('/')[0].split('?')[0].strip()
+    
+    sorted_sites = sorted(LLM_DISPLAY_NAMES.items(), key=lambda x: len(x[0]), reverse=True)
+    
+    for site, display_name in sorted_sites:
+        site_clean = site.replace('www.', '').strip()
+        if site_clean == llm_lower_clean or site_clean in llm_lower_clean or site in llm_lower:
             return display_name
-    
-    if 'chatgpt' in llm_lower or 'openai' in llm_lower:
-        return 'ChatGPT'
-    elif 'claude' in llm_lower or 'anthropic' in llm_lower:
-        return 'Claude'
-    elif 'gemini' in llm_lower or 'bard' in llm_lower:
-        return 'Gemini'
-    elif 'perplexity' in llm_lower:
-        return 'Perplexity'
     
     return "Other"
 
@@ -1098,7 +1097,6 @@ def get_power_users(
     
     start_date, end_date = parse_time_range(time_range)
     
-    # Get users with most copies - limit to top 5
     users_data = session.exec(
         select(
             ContextVersion.user_id,
@@ -1108,18 +1106,19 @@ def get_power_users(
         .where(ContextVersion.last_used_at < end_date)
         .group_by(ContextVersion.user_id)
         .order_by(func.sum(ContextVersion.uses_count).desc())
-        .limit(5)  # Fixed to top 5 only
+        .limit(5)
     ).all()
     
     result = []
     for user_id, copies in users_data:
-        # Get versions count
+        user = session.exec(select(User).where(User.id == user_id)).first()
+        email = user.email if user else "N/A"
+        
         versions = session.exec(
             select(func.count(ContextVersion.id))
             .where(ContextVersion.user_id == user_id)
         ).one() or 0
         
-        # Get most used box
         most_used = session.exec(
             select(ContextVersion.box_name)
             .where(ContextVersion.user_id == user_id)
@@ -1127,7 +1126,6 @@ def get_power_users(
             .limit(1)
         ).first()
         
-        # Calculate sessions from analytics events (unique days with activity)
         sessions = session.exec(
             select(func.count(func.distinct(func.date(AnalyticsEvent.created_at))))
             .where(AnalyticsEvent.user_id == user_id)
@@ -1136,7 +1134,7 @@ def get_power_users(
         ).one() or 0
         
         result.append({
-            "user_id": str(user_id)[:8],
+            "email": email,
             "context_copies_7d": int(copies),
             "versions_created": versions,
             "most_used_box": most_used if most_used else "N/A",
@@ -1776,22 +1774,14 @@ def get_llm_platform_distribution(
     
     for llm, count in versions:
         if llm:
-            llm_lower = llm.lower()
-            if 'chatgpt' in llm_lower or 'openai' in llm_lower:
-                llm_data['chatgpt'] += int(count) if count else 0
-            elif 'claude' in llm_lower or 'anthropic' in llm_lower:
-                llm_data['claude'] += int(count) if count else 0
-            elif 'gemini' in llm_lower or 'bard' in llm_lower:
-                llm_data['gemini'] += int(count) if count else 0
-            elif 'perplexity' in llm_lower:
-                llm_data['perplexity'] += int(count) if count else 0
-            else:
-                llm_data['others'] += int(count) if count else 0
+            display_name = categorize_llm(llm)
+            platform_key = display_name.lower().replace(' ', '')
+            llm_data[platform_key] += int(count) if count else 0
             total += int(count) if count else 0
     
     result = {}
-    for llm, count in llm_data.items():
-        result[llm] = {
+    for platform_key, count in llm_data.items():
+        result[platform_key] = {
             "count": count,
             "percentage": round(safe_divide(count * 100, total), 1)
         }
@@ -1849,11 +1839,8 @@ def get_llm_usage_trends(
     start_date, end_date = parse_time_range(time_range)
     
     dates = []
-    chatgpt_data = []
-    claude_data = []
-    gemini_data = []
-    perplexity_data = []
-    others_data = []
+    all_platforms_seen = set()
+    daily_data = []
     
     current = start_date
     while current < end_date:
@@ -1872,25 +1859,21 @@ def get_llm_usage_trends(
         for llm, count in versions:
             if llm:
                 display_name = categorize_llm(llm)
-                if display_name != "Other":
-                    day_data[display_name] += int(count) if count else 0
+                platform_key = display_name.lower().replace(' ', '')
+                day_data[platform_key] += int(count) if count else 0
+                all_platforms_seen.add(platform_key)
         
-        chatgpt_data.append(day_data.get('ChatGPT', 0))
-        claude_data.append(day_data.get('Claude', 0))
-        gemini_data.append(day_data.get('Gemini', 0))
-        perplexity_data.append(day_data.get('Perplexity', 0))
-        others_data.append(0)
-        
+        daily_data.append(day_data)
         current = next_day
     
-    return {
-        "dates": dates,
-        "chatgpt": chatgpt_data,
-        "claude": claude_data,
-        "gemini": gemini_data,
-        "perplexity": perplexity_data,
-        "others": others_data
-    }
+    result = {"dates": dates}
+    for platform in all_platforms_seen:
+        platform_values = []
+        for day_data in daily_data:
+            platform_values.append(day_data.get(platform, 0))
+        result[platform] = platform_values
+    
+    return result
 
 
 @analytics_router.get("/llm/platform-details")
@@ -2240,10 +2223,156 @@ def get_db_view(
         raise HTTPException(status_code=404, detail=f"Table '{table_name}' not found")
 
 
-# REMOVED: MONETIZATION, RETENTION, CONTENT ENDPOINTS
-# These tabs were removed from the admin UI as per client request
+def get_all_table_data(table_name: str, session: Session):
+    if table_name == "users":
+        users = session.exec(select(User).order_by(User.created_at.desc())).all()
+        headers = ["ID", "Email", "Email Verified", "Onboarding Completed", "Created At"]
+        rows = []
+        for user in users:
+            rows.append([
+                str(user.id),
+                user.email,
+                "Yes" if user.email_verified else "No",
+                "Yes" if user.onboarding_completed else "No",
+                user.created_at.strftime("%Y-%m-%d %H:%M:%S") if user.created_at else ""
+            ])
+        return headers, rows
+    
+    elif table_name == "contexts":
+        contexts = session.exec(select(ContextVersion).order_by(ContextVersion.created_at.desc())).all()
+        headers = ["ID", "User ID", "Box Name", "Version", "Uses Count", "Last LLM", "Created At"]
+        rows = []
+        for ctx in contexts:
+            rows.append([
+                str(ctx.id),
+                str(ctx.user_id),
+                ctx.box_name,
+                str(ctx.version_number),
+                str(ctx.uses_count),
+                ctx.last_llm_used or "N/A",
+                ctx.created_at.strftime("%Y-%m-%d %H:%M:%S") if ctx.created_at else ""
+            ])
+        return headers, rows
+    
+    elif table_name == "feedbacks":
+        feedbacks = session.exec(
+            select(Feedback, User)
+            .outerjoin(User, Feedback.user_id == User.id)
+            .order_by(Feedback.created_at.desc())
+        ).all()
+        headers = ["ID", "User ID", "Type", "Message", "Email", "Created At"]
+        rows = []
+        for fb, user in feedbacks:
+            email = (user.email if user else None) or fb.email or "N/A"
+            rows.append([
+                str(fb.id),
+                str(fb.user_id) if fb.user_id else "N/A",
+                fb.type,
+                fb.message or "",
+                email,
+                fb.created_at.strftime("%Y-%m-%d %H:%M:%S") if fb.created_at else ""
+            ])
+        return headers, rows
+    
+    elif table_name == "upgrades":
+        upgrades = session.exec(select(UpgradeInterest).order_by(UpgradeInterest.created_at.desc())).all()
+        headers = ["ID", "User ID", "Email", "Notes", "Created At"]
+        rows = []
+        for up in upgrades:
+            rows.append([
+                str(up.id),
+                str(up.user_id),
+                up.email,
+                up.notes or "",
+                up.created_at.strftime("%Y-%m-%d %H:%M:%S") if up.created_at else ""
+            ])
+        return headers, rows
+    
+    elif table_name == "analytics":
+        events = session.exec(select(AnalyticsEvent).order_by(AnalyticsEvent.created_at.desc())).all()
+        headers = ["ID", "User ID", "Event Type", "Retrieval Time", "Metadata", "Created At"]
+        rows = []
+        for event in events:
+            metadata_str = json.dumps(event.event_metadata) if event.event_metadata else "{}"
+            retrieval_time = "N/A"
+            if event.event_type == "context_retrieved" and isinstance(event.event_metadata, dict):
+                retrieval_time_ms = event.event_metadata.get("retrieval_time_ms")
+                if retrieval_time_ms is not None:
+                    retrieval_time = f"{retrieval_time_ms}ms"
+            rows.append([
+                str(event.id),
+                str(event.user_id) if event.user_id else "N/A",
+                event.event_type,
+                retrieval_time,
+                metadata_str,
+                event.created_at.strftime("%Y-%m-%d %H:%M:%S") if event.created_at else ""
+            ])
+        return headers, rows
+    
+    elif table_name == "installs":
+        installs = session.exec(select(InstallEvent).order_by(InstallEvent.created_at.desc())).all()
+        headers = ["ID", "User ID", "Status", "Metadata", "Created At"]
+        rows = []
+        for inst in installs:
+            metadata_str = json.dumps(inst.event_metadata) if inst.event_metadata else "{}"
+            rows.append([
+                str(inst.id),
+                str(inst.user_id) if inst.user_id else "N/A",
+                inst.status,
+                metadata_str,
+                inst.created_at.strftime("%Y-%m-%d %H:%M:%S") if inst.created_at else ""
+            ])
+        return headers, rows
+    
+    elif table_name == "onboarding":
+        onboarding = session.exec(select(OnboardingEvent).order_by(OnboardingEvent.created_at.desc())).all()
+        headers = ["ID", "User ID", "Event Type", "Step Number", "Created At"]
+        rows = []
+        for onb in onboarding:
+            rows.append([
+                str(onb.id),
+                str(onb.user_id),
+                onb.event_type,
+                str(onb.step_number) if onb.step_number else "N/A",
+                onb.created_at.strftime("%Y-%m-%d %H:%M:%S") if onb.created_at else ""
+            ])
+        return headers, rows
+    
+    else:
+        raise HTTPException(status_code=404, detail=f"Table '{table_name}' not found")
 
-# PERFORMANCE & RETENTION & CONTENT ENDPOINTS (Simplified)
+
+@analytics_router.get("/dbview/{table_name}/download")
+def download_db_view_csv(
+    table_name: str,
+    admin: dict = Depends(get_admin_user),
+    session: Session = Depends(get_session)
+):
+    try:
+        headers, rows = get_all_table_data(table_name, session)
+        
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(headers)
+        writer.writerows(rows)
+        
+        output.seek(0)
+        csv_content = output.getvalue()
+        output.close()
+        
+        return StreamingResponse(
+            iter([csv_content]),
+            media_type="text/csv",
+            headers={
+                "Content-Disposition": f"attachment; filename={table_name}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.csv"
+            }
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating CSV for {table_name}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error generating CSV: {str(e)}")
+
 
 @analytics_router.get("/performance/metrics")
 def get_performance_metrics(

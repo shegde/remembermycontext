@@ -1218,115 +1218,122 @@ async function updateEngagementCharts(copyActivity, boxUsage, onboardingFunnel) 
 // Update LLM charts
 async function updateLLMCharts(distribution, platforms, usageTrends, diversity) {
     waitForChartJS(() => {
-        // LLM Platform Distribution (pie chart)
         if (distribution) {
-            // API returns direct object like {chatgpt: {percentage: 52.1}, claude: {percentage: 47.9}}
             const dist = distribution.distribution || distribution;
             const labels = [];
             const data = [];
-            const colors = {
+            const colorMap = {
                 'chatgpt': 'rgba(52, 152, 219, 0.8)',
                 'claude': 'rgba(155, 89, 182, 0.8)',
                 'gemini': 'rgba(241, 196, 15, 0.8)',
                 'perplexity': 'rgba(46, 204, 113, 0.8)',
-                'others': 'rgba(231, 76, 60, 0.8)'
+                'phind': 'rgba(255, 159, 64, 0.8)',
+                'mistral': 'rgba(142, 68, 173, 0.8)',
+                'deepseek': 'rgba(26, 188, 156, 0.8)',
+                'grok': 'rgba(192, 57, 43, 0.8)',
+                'llama': 'rgba(52, 73, 94, 0.8)',
+                'cohere': 'rgba(230, 126, 34, 0.8)',
+                'other': 'rgba(231, 76, 60, 0.8)'
             };
             
-            // Filter out "others" and build chart data
-            // API returns percentage, but we need count for pie chart
-            // We'll use percentage as the data value (pie charts work with percentages too)
-            for (const [llm, data_obj] of Object.entries(dist)) {
-                if (llm !== 'others' && llm !== 'Others') {  // Exclude "others" as per user request
-                    labels.push(llm.charAt(0).toUpperCase() + llm.slice(1));
-                    // API returns {percentage: X}, but pie chart needs actual values
-                    // We'll use percentage as the value (Chart.js will normalize it)
-                    const value = data_obj.percentage || data_obj.count || 0;
+            const sortedEntries = Object.entries(dist).sort((a, b) => {
+                const aVal = a[1].count || a[1].percentage || 0;
+                const bVal = b[1].count || b[1].percentage || 0;
+                return bVal - aVal;
+            });
+            
+            for (const [llm, data_obj] of sortedEntries) {
+                const value = data_obj.count || data_obj.percentage || 0;
+                if (value > 0) {
+                    const displayName = llm === 'other' ? 'Others' : llm.charAt(0).toUpperCase() + llm.slice(1);
+                    labels.push(displayName);
                     data.push(value);
                 }
             }
             
-            const total = data.reduce((a, b) => a + b, 0);
-            if (labels.length > 0 && total > 0) {
+            const colors = labels.map(label => {
+                const key = label.toLowerCase();
+                return colorMap[key] || colorMap['other'];
+            });
+            
+            if (labels.length > 0 && data.length > 0) {
                 const canvas = document.getElementById('llm-platform-chart');
                 if (canvas) {
                     createPieChart('llm-platform-chart', {
                         labels: labels,
                         datasets: [{
                             data: data,
-                            backgroundColor: Object.values(colors).slice(0, labels.length)
+                            backgroundColor: colors
                         }]
                     });
                 } else {
                     console.warn('llm-platform-chart canvas not found');
                 }
             } else {
-                console.warn('LLM Platform Distribution: No data to display', { labels, data, total, distribution, dist });
+                console.warn('LLM Platform Distribution: No data to display', { labels, data, distribution, dist });
             }
         } else {
             console.warn('LLM Platform Distribution: Invalid distribution data', distribution);
         }
         
-        // LLM Usage Trends (stacked area chart)
         if (usageTrends && usageTrends.dates) {
-            createLineChart('llm-usage-trends-chart', {
-                labels: usageTrends.dates,
-                datasets: [
-                    {
-                        label: 'ChatGPT',
-                        data: usageTrends.chatgpt || [],
-                        borderColor: 'rgb(52, 152, 219)',
-                        backgroundColor: 'rgba(52, 152, 219, 0.3)',
+            const colorMap = {
+                'chatgpt': { border: 'rgb(52, 152, 219)', fill: 'rgba(52, 152, 219, 0.3)' },
+                'claude': { border: 'rgb(155, 89, 182)', fill: 'rgba(155, 89, 182, 0.3)' },
+                'gemini': { border: 'rgb(241, 196, 15)', fill: 'rgba(241, 196, 15, 0.3)' },
+                'perplexity': { border: 'rgb(46, 204, 113)', fill: 'rgba(46, 204, 113, 0.3)' },
+                'phind': { border: 'rgb(255, 159, 64)', fill: 'rgba(255, 159, 64, 0.3)' },
+                'mistral': { border: 'rgb(142, 68, 173)', fill: 'rgba(142, 68, 173, 0.3)' },
+                'deepseek': { border: 'rgb(26, 188, 156)', fill: 'rgba(26, 188, 156, 0.3)' },
+                'grok': { border: 'rgb(192, 57, 43)', fill: 'rgba(192, 57, 43, 0.3)' },
+                'llama': { border: 'rgb(52, 73, 94)', fill: 'rgba(52, 73, 94, 0.3)' },
+                'cohere': { border: 'rgb(230, 126, 34)', fill: 'rgba(230, 126, 34, 0.3)' },
+                'other': { border: 'rgb(231, 76, 60)', fill: 'rgba(231, 76, 60, 0.3)' }
+            };
+            
+            const datasets = [];
+            const platformKeys = Object.keys(usageTrends).filter(key => key !== 'dates' && Array.isArray(usageTrends[key]));
+            
+            const platformCounts = {};
+            for (const platform of platformKeys) {
+                const total = usageTrends[platform].reduce((sum, val) => sum + val, 0);
+                platformCounts[platform] = total;
+            }
+            
+            const sortedPlatforms = platformKeys.sort((a, b) => (platformCounts[b] || 0) - (platformCounts[a] || 0));
+            
+            for (const platform of sortedPlatforms) {
+                const hasData = usageTrends[platform].some(val => val > 0);
+                if (hasData) {
+                    const displayName = platform === 'other' ? 'Others' : platform.charAt(0).toUpperCase() + platform.slice(1);
+                    const colors = colorMap[platform] || colorMap['other'];
+                    datasets.push({
+                        label: displayName,
+                        data: usageTrends[platform],
+                        borderColor: colors.border,
+                        backgroundColor: colors.fill,
                         fill: true,
                         tension: 0.4,
                         stack: 'stack1'
-                    },
-                    {
-                        label: 'Claude',
-                        data: usageTrends.claude || [],
-                        borderColor: 'rgb(155, 89, 182)',
-                        backgroundColor: 'rgba(155, 89, 182, 0.3)',
-                        fill: true,
-                        tension: 0.4,
-                        stack: 'stack1'
-                    },
-                    {
-                        label: 'Gemini',
-                        data: usageTrends.gemini || [],
-                        borderColor: 'rgb(241, 196, 15)',
-                        backgroundColor: 'rgba(241, 196, 15, 0.3)',
-                        fill: true,
-                        tension: 0.4,
-                        stack: 'stack1'
-                    },
-                    {
-                        label: 'Perplexity',
-                        data: usageTrends.perplexity || [],
-                        borderColor: 'rgb(46, 204, 113)',
-                        backgroundColor: 'rgba(46, 204, 113, 0.3)',
-                        fill: true,
-                        tension: 0.4,
-                        stack: 'stack1'
-                    },
-                    {
-                        label: 'Others',
-                        data: usageTrends.others || [],
-                        borderColor: 'rgb(231, 76, 60)',
-                        backgroundColor: 'rgba(231, 76, 60, 0.3)',
-                        fill: true,
-                        tension: 0.4,
-                        stack: 'stack1'
-                    }
-                ]
-            }, {
-                scales: {
-                    x: {
-                        stacked: true
-                    },
-                    y: {
-                        stacked: true
-                    }
+                    });
                 }
-            });
+            }
+            
+            if (datasets.length > 0) {
+                createLineChart('llm-usage-trends-chart', {
+                    labels: usageTrends.dates,
+                    datasets: datasets
+                }, {
+                    scales: {
+                        x: {
+                            stacked: true
+                        },
+                        y: {
+                            stacked: true
+                        }
+                    }
+                });
+            }
         }
         
         // User LLM Diversity Chart
@@ -1720,7 +1727,7 @@ async function loadEngagementData() {
                     const icon = boxIcons[user.most_used_box] || '📦';
                     return `
                         <tr>
-                            <td>${user.user_id}</td>
+                            <td>${user.email || user.user_id || 'N/A'}</td>
                             <td class="metric-value">${formatNumber(user.context_copies_7d)}</td>
                             <td>${user.versions_created}</td>
                             <td>${icon} ${user.most_used_box}</td>
@@ -1824,13 +1831,7 @@ async function loadLLMData() {
                     const growth = platform.growth > 0 ? `+${platform.growth}%` : platform.growth < 0 ? `${platform.growth}%` : 'Stable';
                     const growthClass = platform.growth > 0 ? 'up' : platform.growth < 0 ? 'down' : 'stable';
                     
-                    // For "Other" platform, show which LLMs are included
-                    let platformName = platform.platform;
-                    if (platform.platform === 'Other' && platform.other_llms && platform.other_llms.length > 0) {
-                        const otherList = platform.other_llms.slice(0, 3).join(', '); // Show first 3
-                        const moreCount = platform.other_llms.length > 3 ? ` +${platform.other_llms.length - 3} more` : '';
-                        platformName = `Other (${otherList}${moreCount})`;
-                    }
+                    let platformName = platform.platform === 'Other' ? 'Others' : platform.platform;
                     
                     return `
                         <tr>
@@ -1857,6 +1858,7 @@ async function loadLLMData() {
 // DB View functions
 let currentDBTable = 'users';
 let currentDBPage = 1;
+let currentDBTotal = 0;
 const DB_PAGE_SIZE = 10;
 
 async function loadDBViewData() {
@@ -1875,6 +1877,16 @@ async function loadDBViewData() {
         }
     } catch (error) {
         console.error('Error loading DB view data:', error);
+    }
+}
+
+function changeDBViewPage(delta) {
+    const totalPages = Math.ceil((currentDBTotal || 0) / DB_PAGE_SIZE);
+    const newPage = currentDBPage + delta;
+    
+    if (newPage >= 1 && newPage <= totalPages) {
+        currentDBPage = newPage;
+        loadDBViewData();
     }
 }
 
@@ -1897,14 +1909,16 @@ function updateDBViewTable(data) {
     const tableHead = document.getElementById('dbview-table-head');
     const tableBody = document.getElementById('dbview-table-body');
     
+    currentDBTotal = data.total || 0;
+    
     if (titleEl) {
-            const tableNames = {
-                'users': 'Users',
-                'contexts': 'Context Versions',
-                'feedbacks': 'Feedbacks',
-                'upgrades': 'Upgrade Interests',
-                'analytics': 'Analytics Events'
-            };
+        const tableNames = {
+            'users': 'Users',
+            'contexts': 'Context Versions',
+            'feedbacks': 'Feedbacks',
+            'upgrades': 'Upgrade Interests',
+            'analytics': 'Analytics Events'
+        };
         titleEl.textContent = tableNames[currentDBTable] || currentDBTable;
     }
     
@@ -1919,10 +1933,14 @@ function updateDBViewTable(data) {
     
     if (prevBtn) {
         prevBtn.disabled = currentDBPage <= 1;
+        prevBtn.style.opacity = currentDBPage <= 1 ? '0.5' : '1';
+        prevBtn.style.cursor = currentDBPage <= 1 ? 'not-allowed' : 'pointer';
     }
     
     if (nextBtn) {
         nextBtn.disabled = currentDBPage >= totalPages;
+        nextBtn.style.opacity = currentDBPage >= totalPages ? '0.5' : '1';
+        nextBtn.style.cursor = currentDBPage >= totalPages ? 'not-allowed' : 'pointer';
     }
     
     if (tableHead && data.headers) {
@@ -1947,5 +1965,44 @@ function updateDBViewTable(data) {
             return `<tr>${cells.join('')}</tr>`;
         }).join('');
     }
+}
+
+function downloadDBViewCSV() {
+    const tableName = currentDBTable;
+    const token = localStorage.getItem('admin_token');
+    
+    if (!token) {
+        alert('Please log in to download CSV');
+        return;
+    }
+    
+    const url = `/api/v1/admin/analytics/dbview/${tableName}/download`;
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${tableName}_${new Date().toISOString().split('T')[0]}.csv`;
+    
+    fetch(url, {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Download failed');
+        }
+        return response.blob();
+    })
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        link.href = url;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+    })
+    .catch(error => {
+        console.error('Error downloading CSV:', error);
+        alert('Failed to download CSV. Please try again.');
+    });
 }
 

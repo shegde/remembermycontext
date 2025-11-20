@@ -77,7 +77,8 @@ def mark_version_used(
             version.uses_count += 1
             version.last_used_at = datetime.now(timezone.utc)
             if llm_name and llm_name.strip():
-                version.last_llm_used = llm_name
+                normalized_llm = llm_name.strip().lower().replace('www.', '')
+                version.last_llm_used = normalized_llm
             session.add(version)
             session.commit()
             session.refresh(version)

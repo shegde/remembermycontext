@@ -5,11 +5,46 @@ let contextsCache = {};
 
 const LLM_SITES = [
     'chatgpt.com',
-    'claude.ai',
-    'anthropic.com',
+    'chat.openai.com',
     'openai.com',
-    'bard.google.com',
+    'platform.openai.com',
+    'claude.ai',
+    'chat.anthropic.com',
+    'anthropic.com',
     'gemini.google.com',
+    'bard.google.com',
+    'deepmind.google',
+    'ai.google.dev',
+    'meta.ai',
+    'llama.meta.com',
+    'x.ai',
+    'grok.x.ai',
+    'mistral.ai',
+    'chat.mistral.ai',
+    'console.mistral.ai',
+    'deepseek.com',
+    'platform.deepseek.com',
+    'cohere.com',
+    'dashboard.cohere.com',
+    'qwen.ai',
+    'tongyi.aliyun.com',
+    'yiyan.baidu.com',
+    'baidu.com',
+    'zhipu.ai',
+    'chatglm.cn',
+    'sensetime.com',
+    'chat.sensetime.com',
+    'xinghuo.xfyun.cn',
+    'huawei.com',
+    'ai21.com',
+    'studio.ai21.com',
+    'stability.ai',
+    'aleph-alpha.com',
+    'reka.ai',
+    'writer.com',
+    'snowflake.com',
+    'databricks.com',
+    'mosaicml.com',
     'perplexity.ai',
     'poe.com',
     'character.ai',
@@ -21,10 +56,11 @@ const LLM_SITES = [
 
 function getLLMName(hostname) {
     if (!hostname) return null;
-    const hostnameLower = hostname.toLowerCase();
+    const hostnameLower = hostname.toLowerCase().replace('www.', '');
     for (const llmSite of LLM_SITES) {
-        if (hostnameLower.includes(llmSite)) {
-            return llmSite;
+        const siteClean = llmSite.replace('www.', '');
+        if (hostnameLower.includes(siteClean)) {
+            return siteClean;
         }
     }
     return null;

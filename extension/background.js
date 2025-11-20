@@ -1,7 +1,17 @@
+// ============================================
+// ENVIRONMENT SWITCH - Must match config.js
+// ============================================
+const USE_LOCAL = false;  // Set to true for localhost, false for production
+// ============================================
+
+const PRODUCTION_API = 'https://remembermycontexttest.onrender.com/api/v1';
+const LOCAL_API = 'http://localhost:8000/api/v1';
+
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === 'install' || details.reason === 'update') {
-    chrome.storage.local.get(['apiBase'], (result) => {
-      const API_BASE = result.apiBase || 'http://localhost:8000/api/v1';
+    chrome.storage.local.get(['remembermycontext_config'], (result) => {
+      const config = result.remembermycontext_config;
+      const API_BASE = config?.apiBaseUrl || (USE_LOCAL ? LOCAL_API : PRODUCTION_API);
       
       fetch(`${API_BASE}/analytics`, {
         method: 'POST',

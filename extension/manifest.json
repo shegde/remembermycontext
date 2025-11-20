@@ -9,9 +9,10 @@
     "scripting"
   ],
   "host_permissions": [
+    "https://remembermycontexttest.onrender.com/*",
+    "https://*.onrender.com/*",
     "http://localhost:8000/*",
-    "http://127.0.0.1:8000/*",
-    "https://*.onrender.com/*"
+    "http://127.0.0.1:8000/*"
   ],
   "background": {
     "service_worker": "background.js"
