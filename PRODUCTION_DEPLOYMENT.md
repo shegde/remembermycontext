@@ -1,332 +1,497 @@
-# Production Deployment Guide for Client
+# Production Deployment Guide
 
 ## 🎯 Overview
 
-This `prod` branch is production-ready for deployment on the client's Render account with custom domain `remembermycontext.com`.
+This guide will deploy RememberMyContext to production on **remembermycontext.com** using the `prod` branch.
+
+**Important:** Even though Render gives you an `onrender.com` URL, users will ONLY see `remembermycontext.com` because we set `FRONTEND_URL` to the custom domain.
 
 ---
 
-## 📋 Pre-Deployment Checklist
+## 📋 Quick Setup Checklist
 
-### 1. Render Account Setup
+- [ ] Push `prod` branch to GitHub
+- [ ] Create Render Web Service from `prod` branch
+- [ ] Create PostgreSQL database
+- [ ] Add all environment variables (see below)
+- [ ] Configure custom domain in Render
+- [ ] Update DNS records in domain registrar
+- [ ] Wait for SSL activation
+- [ ] Test deployment
 
-#### A. Create New Web Service
-1. Log into client's Render account
-2. Click **"New +"** → **"Web Service"**
-3. Connect to repository: `uikarsh-titbul/remembermycontext`
-4. Select **branch: `prod`**
-5. Configure:
-   ```
-   Name: remembermycontext
-   Region: Choose closest to target users
-   Branch: prod
-   Build Command: pip install -r requirements.txt
-   Start Command: uvicorn src.main:app --host 0.0.0.0 --port $PORT
-   ```
+---
 
-#### B. Create PostgreSQL Database
-1. In Render dashboard → **"New +"** → **"PostgreSQL"**
-2. Configure:
+## 🚀 Step 1: Push Production Branch
+
+```bash
+git push -u origin prod
+```
+
+---
+
+## 🗄️ Step 2: Create PostgreSQL Database
+
+1. Go to https://dashboard.render.com
+2. Click **"New +"** → **"PostgreSQL"**
+3. Configure:
    ```
    Name: remembermycontext-prod-db
    Database: remembermycontext_prod
-   User: (auto-generated)
-   Region: Same as web service
+   Region: Choose closest to your users
    PostgreSQL Version: 16
+   Plan: Free (upgrade later if needed)
    ```
-3. **Important:** Copy the **Internal Database URL** (starts with `postgresql://`)
+4. Click **"Create Database"**
+5. **IMPORTANT:** Copy the **Internal Database URL** (it will look like):
+   ```
+   postgresql://username:password@dpg-xxxxx-a.oregon-postgres.render.com/dbname
+   ```
 
-### 2. Environment Variables
+---
 
-Add these in Render Web Service → **"Environment"** tab:
+## 🌐 Step 3: Create Web Service
+
+1. In Render Dashboard → **"New +"** → **"Web Service"**
+2. Connect to your GitHub repository
+3. Configure:
+
+   ```
+   Name: remembermycontext
+   Region: Same as database
+   Branch: prod  ← IMPORTANT: Select prod branch
+   Root Directory: (leave blank)
+   Runtime: Python 3
+   Build Command: pip install -r requirements.txt
+   Start Command: uvicorn src.main:app --host 0.0.0.0 --port $PORT
+   Plan: Free (upgrade when needed)
+   ```
+
+4. Click **"Create Web Service"** (don't add env vars yet)
+
+---
+
+## 🔧 Step 4: Add Environment Variables
+
+In Render Web Service → **"Environment"** tab → Click **"Add Environment Variable"**
+
+### Copy these EXACT values (update the marked ones):
 
 ```bash
-# Database
-DATABASE_URL=<Internal Database URL from PostgreSQL service>
+# API Configuration
+API_PREFIX=/api/v1
 
-# Security
-SECRET_KEY=<generate-new-secret-key-here>
-ENCRYPTION_KEY=<generate-new-encryption-key-here>
-
-# Email (if using)
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=<client-email@domain.com>
-SMTP_PASSWORD=<app-specific-password>
-
-# Application
-ENVIRONMENT=production
+# Frontend URLs - IMPORTANT: Use custom domain, NOT onrender URL
 FRONTEND_URL=https://remembermycontext.com
+ALLOWED_ORIGINS=https://remembermycontext.com,https://www.remembermycontext.com
 
-# Optional: Rate limiting
+# Database - REPLACE with your Internal Database URL from Step 2
+DATABASE_URL=postgresql://username:password@dpg-xxxxx-a.oregon-postgres.render.com/dbname
+
+# Security - GENERATE NEW VALUES (instructions below)
+JWT_SECRET=GENERATE_NEW_SECRET_HERE
+FERNET_KEY=GENERATE_NEW_FERNET_KEY_HERE
+ADMIN_PASSWORD=GENERATE_NEW_STRONG_PASSWORD_HERE
+
+# Email Service (use your Resend API key)
+RESEND_API_KEY=re_LJgocdhj_LtVevNDLaZF6WSZ5MJHdxW8z
+FROM_EMAIL=admin@remembermycontext.com
+USE_RESEND_DEFAULT_DOMAIN=true
+
+# Email Verification
+EMAIL_VERIFICATION_REQUIRED=true
+EMAIL_VERIFICATION_EXPIRY_HOURS=24
+VERIFICATION_TOKEN_EXPIRE_HOURS=24
+
+# Password Reset
+ENABLE_PASSWORD_RESET=true
+PASSWORD_RESET_EXPIRY_HOURS=1
+PASSWORD_RESET_TOKEN_EXPIRE_HOURS=1
+
+# Features
+ENABLE_ONBOARDING=true
+CALENDLY_LINK=https://cal.com/shailesh-hegde-arsvcf/remembermycontext
+
+# Rate Limiting & Security
 RATE_LIMIT_PER_MINUTE=60
+MAX_CONTEXT_LENGTH=50000
+ACCESS_TOKEN_EXPIRE_MINUTES=10080
+ACCOUNT_DELETION_GRACE_DAYS=7
+
+# Logging
+LOG_LEVEL=INFO
+ECHO_SQL=false
 ```
 
-#### Generate Secret Keys:
+---
+
+## 🔐 Step 5: Generate New Security Keys
+
+**NEVER reuse test keys in production!** Generate new ones:
+
+### Generate JWT_SECRET:
 ```bash
-# SECRET_KEY (32 characters minimum)
-python -c "import secrets; print(secrets.token_urlsafe(32))"
+python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+Example output: `Ge_u_yR0TzbQEoqtnrl2JOaC4BW5BR6SWM-O1rTsgYQ`
 
-# ENCRYPTION_KEY (32 bytes base64 encoded)
-python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+### Generate FERNET_KEY:
+```bash
+python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+Example output: `9bRv0j2nMtzNzHW6CZDMVmm_yTLW0vGve3Ay-iLePuo=`
+
+### Generate ADMIN_PASSWORD:
+Use a strong password (min 8 chars, letters + numbers):
+```
+Example: MyStr0ngP@ssw0rd2024!
 ```
 
-### 3. Custom Domain Configuration
+**Copy these generated values to the environment variables above.**
 
-#### A. In Render Dashboard:
-1. Go to Web Service → **"Settings"** → **"Custom Domain"**
+---
+
+## 🌍 Step 6: Configure Custom Domain
+
+### A. In Render Dashboard:
+
+1. Go to your Web Service → **"Settings"** → **"Custom Domain"**
 2. Click **"Add Custom Domain"**
 3. Enter: `remembermycontext.com`
-4. Render will show DNS records to add
+4. Render will show you DNS records like:
+   ```
+   CNAME: remembermycontext-xxxx.onrender.com
+   ```
+5. Keep this page open, you'll need these values for DNS
 
-#### B. In Domain Registrar (e.g., GoDaddy, Namecheap):
-1. Go to DNS Management
-2. Add these records:
+### B. In Your Domain Registrar (GoDaddy, Namecheap, etc.):
 
-**For Root Domain (remembermycontext.com):**
+1. Log into your domain registrar
+2. Go to **DNS Management** for `remembermycontext.com`
+3. Add these records:
+
+**For Root Domain (@):**
 ```
 Type: CNAME
-Name: @
-Value: <provided-by-render>.onrender.com
-TTL: 3600
+Name: @ (or leave blank)
+Value: remembermycontext-xxxx.onrender.com  ← From Render dashboard
+TTL: 3600 (1 hour)
 ```
 
 **For WWW Subdomain:**
 ```
 Type: CNAME
 Name: www
-Value: <provided-by-render>.onrender.com
+Value: remembermycontext-xxxx.onrender.com  ← Same value as above
 TTL: 3600
 ```
 
-**For API (if separate subdomain):**
-```
-Type: CNAME
-Name: api
-Value: <provided-by-render>.onrender.com
-TTL: 3600
-```
+4. **Save changes**
 
-3. Wait 5-60 minutes for DNS propagation
+### C. Wait for DNS Propagation:
+- Usually takes 5-30 minutes
+- Can take up to 24 hours in rare cases
+- Check status: https://dnschecker.org
 
-#### C. Enable HTTPS:
-- Render automatically provides free SSL certificate
-- Check "Settings" → "Custom Domain" → Should show "SSL Active"
+### D. SSL Certificate:
+- Render automatically provisions SSL certificate
+- Once DNS propagates, SSL will activate automatically
+- Check in Render: "Settings" → "Custom Domain" → Should show "SSL Active"
 
 ---
 
-## 🚀 Deployment Steps
+## ✅ Step 7: Verify Deployment
 
-### Step 1: Initial Deployment
-1. Push `prod` branch to GitHub:
-   ```bash
-   git push origin prod
-   ```
+### Wait for Service to Deploy:
+- In Render → "Logs" tab
+- Wait for message: **"Your service is live 🎉"**
 
-2. In Render, the service will auto-deploy from `prod` branch
+### Test Endpoints:
 
-3. Monitor logs for "Your service is live" message
+```bash
+# Test custom domain health
+curl https://remembermycontext.com/health
+# Expected: {"status":"healthy"}
 
-### Step 2: Database Migration
-Once service is live, run migrations:
+# Test API health
+curl https://remembermycontext.com/api/v1/health
+# Expected: 200 OK
 
-**Option A: Via Render Shell**
+# Test in browser
+https://remembermycontext.com/docs
+# Should show API documentation
+
+# Test dashboard
+https://remembermycontext.com/dashboard
+# Should show login page
+
+# Test admin
+https://remembermycontext.com/admin
+# Should show admin login
+```
+
+---
+
+## 🔍 Step 8: Database Migrations (If Needed)
+
+If you need to run migrations:
+
+### Option A: Using Render Shell
 1. Render Dashboard → Web Service → **"Shell"** tab
 2. Run:
    ```bash
    alembic upgrade head
    ```
 
-**Option B: Local Connection**
+### Option B: From Local Machine
 ```bash
-# Connect to prod DB locally
-export DATABASE_URL="<prod-database-url>"
+# Connect to prod database
+export DATABASE_URL="<your-production-database-url>"
 alembic upgrade head
 ```
 
-### Step 3: Create Admin User
-```bash
-# In Render Shell or via API
-python -c "from src.crud.user import create_admin_user; create_admin_user()"
-```
+---
 
-### Step 4: Verify Deployment
-```bash
-# Test health endpoint
-curl https://remembermycontext.com/health
+## 🎨 Step 9: Test Extension
 
-# Test API
-curl https://remembermycontext.com/api/v1/health
+### Load Extension:
+1. Open Chrome
+2. Go to `chrome://extensions/`
+3. Enable **"Developer mode"**
+4. Click **"Load unpacked"**
+5. Select the `extension/` folder from `prod` branch
 
-# Test docs
-https://remembermycontext.com/docs
-```
+### Verify Extension Config:
+- Extension should connect to `https://remembermycontext.com/api/v1`
+- Open extension popup
+- Create account
+- Test context box creation
+- Test insertion on ChatGPT/Claude
+
+### Check Extension Console:
+1. Right-click extension icon → **"Inspect popup"**
+2. Check Console tab for any errors
+3. Network tab should show requests to `remembermycontext.com` (NOT onrender)
 
 ---
 
-## 🔧 Post-Deployment Configuration
+## 🎯 Why FRONTEND_URL Matters
 
-### 1. Extension Deployment
+### Email Links Use This URL:
+```python
+# In src/services/email.py
+verification_url = f"{settings.FRONTEND_URL}/verify-email?token={token}"
+reset_url = f"{settings.FRONTEND_URL}/reset-password?token={token}"
+```
 
-**For Chrome Web Store:**
-1. Zip the `extension/` folder:
-   ```bash
-   cd extension
-   zip -r remembermycontext-extension.zip * -x "*.git*"
+**If you set:**
+- ✅ `FRONTEND_URL=https://remembermycontext.com`  
+  → Users see: `https://remembermycontext.com/verify-email?token=...`
+
+- ❌ `FRONTEND_URL=https://remembermycontext-xxxx.onrender.com`  
+  → Users see ugly onrender URL (NOT PROFESSIONAL)
+
+**Always use your custom domain in FRONTEND_URL!**
+
+---
+
+## 📊 Monitoring & Maintenance
+
+### Set Up Uptime Monitoring:
+1. Go to https://uptimerobot.com (free)
+2. Add monitor:
+   ```
+   URL: https://remembermycontext.com/health
+   Check interval: 5 minutes
+   Alert: Email
    ```
 
-2. Upload to Chrome Web Store:
-   - Go to https://chrome.google.com/webstore/devconsole
-   - Create new item
-   - Upload zip
-   - Submit for review
+### Check Logs Regularly:
+- Render Dashboard → "Logs" tab
+- Look for errors, warnings
+- Monitor performance
 
-**For Internal Testing:**
-1. Go to `chrome://extensions/`
-2. Enable "Developer mode"
-3. Click "Load unpacked"
-4. Select `extension/` folder
-
-### 2. Frontend URLs
-
-All frontend is served from backend:
-- Dashboard: `https://remembermycontext.com/dashboard`
-- Admin Panel: `https://remembermycontext.com/admin`
-- API Docs: `https://remembermycontext.com/docs`
-
-### 3. CORS Configuration
-
-Backend is configured to allow:
-```python
-allow_origins=[
-    "https://remembermycontext.com",
-    "https://www.remembermycontext.com",
-    "chrome-extension://*"
-]
-```
-
----
-
-## 📊 Monitoring
-
-### Render Dashboard
-- **Metrics**: CPU, Memory, Response times
-- **Logs**: Real-time application logs
-- **Events**: Deployment history
-
-### Health Checks
-Set up monitoring with:
-- UptimeRobot (free): https://uptimerobot.com
-- Pingdom
-- StatusCake
-
-Monitor: `https://remembermycontext.com/health`
-
-### Database Backups
-- Render PostgreSQL: Automatic daily backups (Standard plan)
+### Database Backups:
+- Free tier: No automatic backups
+- Standard ($7/month): Daily automatic backups
 - Manual backup:
   ```bash
-  pg_dump $DATABASE_URL > backup.sql
+  pg_dump $DATABASE_URL > backup-$(date +%Y%m%d).sql
   ```
 
 ---
 
-## 🔄 Updates & Rollbacks
+## 🔄 Future Updates
 
-### Deploy New Version
+### To Deploy New Features:
+
 ```bash
-git checkout prod
-git merge main  # or cherry-pick specific commits
-git push origin prod
-```
-Render auto-deploys on push to `prod` branch.
+# 1. Develop on main branch
+git checkout main
+# ... make changes ...
+git push origin main
+# Test on remembermycontexttest.onrender.com
 
-### Rollback
+# 2. When stable, merge to prod
+git checkout prod
+git merge main
+git push origin prod
+# Auto-deploys to remembermycontext.com
+```
+
+### Rollback if Needed:
 In Render Dashboard:
-1. Go to "Events" tab
-2. Click on previous successful deployment
-3. Click "Rollback to this version"
+1. Go to **"Events"** tab
+2. Find last working deployment
+3. Click **"Rollback to this version"**
 
 ---
 
 ## 🐛 Troubleshooting
 
 ### Issue: 502 Bad Gateway
-**Solution:**
-- Check Render logs for errors
-- Verify DATABASE_URL is set
-- Check if service is using correct PORT
 
-### Issue: CORS Errors
-**Solution:**
-- Verify FRONTEND_URL in environment
-- Check CORS middleware in `src/main.py`
+**Causes:**
+- Service is spinning up (wait 1-2 minutes on free tier)
+- Missing environment variables
+- Database connection failed
 
-### Issue: Database Connection Failed
 **Solution:**
-- Use **Internal Database URL** (not External)
-- Format: `postgresql://user:pass@internal-host/db`
+```bash
+# Check logs in Render Dashboard
+# Look for errors after "Starting server..."
+# Verify DATABASE_URL is correct (use Internal URL)
+```
 
-### Issue: Extension Can't Connect
+### Issue: Custom Domain Not Working
+
+**Causes:**
+- DNS not propagated yet
+- Wrong CNAME value
+- SSL not activated
+
 **Solution:**
-- Verify API_BASE in `extension/config-shared.js`
-- Check manifest.json host_permissions
-- Reload extension in Chrome
+```bash
+# Check DNS propagation
+https://dnschecker.org
+
+# Verify CNAME record
+dig remembermycontext.com
+
+# Wait for SSL (can take 30 min after DNS propagates)
+```
+
+### Issue: CORS Errors in Extension
+
+**Causes:**
+- `ALLOWED_ORIGINS` not set correctly
+- Wrong domain in origins
+
+**Solution:**
+```bash
+# Verify environment variable
+ALLOWED_ORIGINS=https://remembermycontext.com,https://www.remembermycontext.com
+
+# Restart service after changing env vars
+```
+
+### Issue: Email Links Point to onrender.com
+
+**Cause:**
+- `FRONTEND_URL` is set to onrender URL
+
+**Solution:**
+```bash
+# Change environment variable
+FRONTEND_URL=https://remembermycontext.com
+# (NOT the onrender URL)
+
+# Restart service
+```
 
 ---
 
-## 📞 Support Contacts
+## 📈 Scaling Recommendations
 
-- **Render Support**: https://render.com/support
-- **Domain Support**: Your domain registrar
-- **SSL Issues**: Render auto-handles SSL
+### Free Tier Limitations:
+- Service sleeps after 15 min inactivity
+- 750 hours/month (shared across services)
+- Limited CPU/RAM
+- No automatic backups
 
----
+### When to Upgrade:
 
-## 🔒 Security Best Practices
+**Starter Plan ($7/month):**
+- Good for 100-500 active users
+- No sleep, always on
+- Faster response times
 
-1. ✅ Keep SECRET_KEY and ENCRYPTION_KEY secret
-2. ✅ Use environment variables, never hardcode
-3. ✅ Enable HTTPS only (no HTTP)
-4. ✅ Regular database backups
-5. ✅ Monitor logs for suspicious activity
-6. ✅ Keep dependencies updated
-7. ✅ Use strong passwords for SMTP/Database
-
----
-
-## 📈 Scaling (Future)
-
-When ready to scale beyond free tier:
-
-**Render Plans:**
-- **Starter ($7/month)**: No sleep, faster instance
-- **Standard ($25/month)**: Autoscaling, more RAM
-- **Pro ($85/month)**: High performance
+**Standard Plan ($25/month):**
+- Good for 500-2000 users
+- More RAM/CPU
+- Autoscaling
 
 **Database:**
-- **Standard ($7/month)**: 1GB RAM, 10GB storage, backups
-- **Pro ($25/month)**: 4GB RAM, 50GB storage
+- **Standard ($7/month):**  
+  1GB RAM, 10GB storage, daily backups
+  
+- **Pro ($25/month):**  
+  4GB RAM, 50GB storage, continuous backups
 
 ---
 
-## ✅ Deployment Completion Checklist
+## 🔒 Security Checklist
 
-- [ ] Render Web Service created
-- [ ] PostgreSQL database created
-- [ ] Environment variables configured
-- [ ] Custom domain added in Render
-- [ ] DNS records updated in registrar
+- [ ] New `JWT_SECRET` generated (not reused from test)
+- [ ] New `FERNET_KEY` generated (not reused from test)
+- [ ] Strong `ADMIN_PASSWORD` (min 8 chars, alphanumeric)
+- [ ] `FRONTEND_URL` uses HTTPS (not HTTP)
+- [ ] `ALLOWED_ORIGINS` includes custom domain
+- [ ] Database uses Internal URL (better security)
+- [ ] Email verification enabled
+- [ ] Rate limiting enabled
+- [ ] SSL certificate active on custom domain
+- [ ] Regular backups configured
+
+---
+
+## ✅ Final Checklist
+
+Before going live, verify:
+
+- [ ] Web service deployed successfully
+- [ ] "Your service is live 🎉" in logs
+- [ ] Database connected (no connection errors)
+- [ ] Custom domain DNS propagated
 - [ ] SSL certificate active
-- [ ] Service deployed successfully
-- [ ] Database migrations run
-- [ ] Admin user created
-- [ ] Health endpoints responding
-- [ ] Extension tested and working
-- [ ] Monitoring set up
-- [ ] Backup strategy in place
+- [ ] `https://remembermycontext.com/health` returns 200
+- [ ] `https://remembermycontext.com/docs` loads
+- [ ] Dashboard accessible at `/dashboard`
+- [ ] Admin panel accessible at `/admin`
+- [ ] Extension connects successfully
+- [ ] Can create account via extension
+- [ ] Can create context box
+- [ ] Can insert context in LLM
+- [ ] Email verification works
+- [ ] Password reset works
+- [ ] Uptime monitoring configured
 
 ---
 
-**Production deployment is complete when all checks pass!** ✅
+## 📞 Support
 
+**Render Status:** https://status.render.com  
+**Render Docs:** https://render.com/docs  
+**Render Support:** https://render.com/support
+
+---
+
+## 🎉 Deployment Complete!
+
+Once all checks pass:
+✅ Production is live on `https://remembermycontext.com`  
+✅ Users only see your custom domain  
+✅ Backend runs securely on Render  
+✅ Extension works seamlessly  
+✅ Ready for real users!
+
+**Test everything thoroughly before sharing with users!**
