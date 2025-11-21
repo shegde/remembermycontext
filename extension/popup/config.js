@@ -9,13 +9,13 @@ const USE_LOCAL = false;  // Set to true for localhost, false for production
 const PRODUCTION_CONFIG = {
     apiBaseUrl: 'https://remembermycontexttest.onrender.com/api/v1',
     isProduction: true,
-    calendlyLink: ''
+    calendlyLink: 'https://cal.com/shailesh-hegde-arsvcf/remembermycontext'
 };
 
 const LOCAL_CONFIG = {
     apiBaseUrl: 'http://localhost:8000/api/v1',
     isProduction: false,
-    calendlyLink: ''
+    calendlyLink: 'https://cal.com/shailesh-hegde-arsvcf/remembermycontext'
 };
 
 async function getConfig() {

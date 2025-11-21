@@ -25,6 +25,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 async function initializeDashboard() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tokenFromUrl = urlParams.get('token');
+    if (tokenFromUrl) {
+        localStorage.setItem('access_token', tokenFromUrl);
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+    
     const token = localStorage.getItem('access_token');
     if (!token) {
         showLoginForm();
@@ -699,6 +706,13 @@ function showRegisterForm() {
                     <div style="margin-bottom: 15px;">
                         <label style="display: block; margin-bottom: 5px; color: #555;">Password:</label>
                         <input type="password" id="register-password" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                        <div style="font-size: 11px; color: #666; margin-top: 5px;">
+                            <strong>Password Requirements:</strong><br>
+                            • At least 8 characters long<br>
+                            • Must contain at least one letter<br>
+                            • Must contain at least one digit<br>
+                            • Special characters are allowed
+                        </div>
                     </div>
                     <div style="margin-bottom: 20px;">
                         <label style="display: block; margin-bottom: 5px; color: #555;">Confirm Password:</label>

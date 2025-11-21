@@ -31,6 +31,13 @@
             <div class="form-group">
                 <label>Password</label>
                 <input type="password" id="signup-password" placeholder="••••••••">
+                <div class="info-box" style="font-size: 11px; margin-top: 5px; color: #666;">
+                    <strong>Password Requirements:</strong><br>
+                    • At least 8 characters long<br>
+                    • Must contain at least one letter<br>
+                    • Must contain at least one digit<br>
+                    • Special characters are allowed
+                </div>
             </div>
             <div class="form-group">
                 <label>Confirm Password</label>
@@ -106,7 +113,7 @@
             <div class="popup-body">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                     <button id="versions-back-btn" class="btn btn-link" style="font-size: 12px; padding: 5px;">← Back</button>
-                    <button id="edit-latest-btn" class="btn btn-primary" style="font-size: 12px; padding: 5px 15px;">Edit Latest</button>
+                    <button id="edit-latest-btn" class="btn btn-primary" style="font-size: 12px; padding: 5px 15px;">Create</button>
                 </div>
                 
                 <div id="versions-list">
@@ -127,13 +134,7 @@
                     <span style="font-size: 12px; color: #666;">Editing will create version v<span id="next-version">1</span></span>
                 </div>
                 <div class="form-group" style="flex: 1; margin-bottom: 10px;">
-                    <textarea id="context-text" placeholder="Paste or type your context here...
-
-Example:
-- Current role: Senior Product Manager
-- 8 years experience in SaaS
-- Interested in AI/ML products
-- Looking for leadership opportunities" style="height: 100%; min-height: 250px;"></textarea>
+                    <textarea id="context-text" placeholder="Paste or type your context here..." style="height: 100%; min-height: 250px;"></textarea>
                 </div>
                 <div style="display: flex; gap: 10px;">
                     <button id="edit-cancel-btn" class="btn btn-secondary" style="flex: 1; background: #6c757d; color: white;">Cancel</button>
@@ -186,54 +187,54 @@ Example:
         </div>
 
         <div id="onboarding-1-screen" class="screen">
-            <div style="text-align: center; padding: 20px 0;">
-                <div style="font-size: 12px; color: #666; margin-bottom: 10px;">Step 1 of 3</div>
-                <h3 style="margin-bottom: 20px; font-size: 20px; font-weight: 600;">Open a Context Box</h3>
-                <div style="width: 100%; max-width: 280px; margin: 0 auto 20px; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); background: #fff;">
+            <div style="text-align: center; padding: 15px 0;">
+                <div style="font-size: 11px; color: #666; margin-bottom: 8px;">Step 1 of 3</div>
+                <h3 style="margin-bottom: 12px; font-size: 18px; font-weight: 600;">Open a Context Box</h3>
+                <div style="width: 100%; max-width: 240px; margin: 0 auto 12px; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); background: #fff;">
                     <img src="../images/step1.png" alt="Context boxes showing the 5 default boxes" style="width: 100%; height: auto; display: block;" />
                 </div>
-                <p style="color: #666; margin-bottom: 30px; line-height: 1.6; padding: 0 20px;">
+                <p style="color: #666; margin-bottom: 15px; line-height: 1.5; padding: 0 20px; font-size: 13px;">
                     Context boxes organize your information by category. Start by opening one of your default boxes.
                 </p>
                 <div style="display: flex; gap: 10px; padding: 0 20px;">
-                    <button id="onboarding-1-skip" class="btn btn-secondary" style="flex: 1; background: #6c757d; color: white;">Skip</button>
-                    <button id="onboarding-1-next" class="btn btn-primary" style="flex: 1;">Next</button>
+                    <button id="onboarding-1-skip" class="btn btn-secondary" style="flex: 1; background: #6c757d; color: white; padding: 8px;">Skip</button>
+                    <button id="onboarding-1-next" class="btn btn-primary" style="flex: 1; padding: 8px;">Next</button>
                 </div>
             </div>
         </div>
 
         <div id="onboarding-2-screen" class="screen">
-            <div style="text-align: center; padding: 20px 0;">
-                <div style="font-size: 12px; color: #666; margin-bottom: 10px;">Step 2 of 3</div>
-                <h3 style="margin-bottom: 20px; font-size: 20px; font-weight: 600;">Add Your Context</h3>
-                <div style="width: 100%; max-width: 280px; margin: 0 auto 20px; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); background: #fff;">
+            <div style="text-align: center; padding: 15px 0;">
+                <div style="font-size: 11px; color: #666; margin-bottom: 8px;">Step 2 of 3</div>
+                <h3 style="margin-bottom: 12px; font-size: 18px; font-weight: 600;">Add Your Context</h3>
+                <div style="width: 100%; max-width: 240px; margin: 0 auto 12px; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); background: #fff;">
                     <img src="../images/step2.png" alt="Context box with text input area" style="width: 100%; height: auto; display: block;" />
                 </div>
-                <p style="color: #666; margin-bottom: 30px; line-height: 1.6; padding: 0 20px;">
-                    Paste your context information and save it. This creates version v0 that you can use across any LLM.
+                <p style="color: #666; margin-bottom: 15px; line-height: 1.5; padding: 0 20px; font-size: 13px;">
+                    Build your context by filling the details from any existing documents or LLM apps. Saving it creates a version and a new version is created every time you save with new information.
                 </p>
                 <div style="display: flex; gap: 10px; padding: 0 20px;">
-                    <button id="onboarding-2-back" class="btn btn-secondary" style="flex: 1; background: #6c757d; color: white;">Back</button>
-                    <button id="onboarding-2-skip" class="btn btn-secondary" style="flex: 1; background: #6c757d; color: white;">Skip</button>
-                    <button id="onboarding-2-next" class="btn btn-primary" style="flex: 1;">Next</button>
+                    <button id="onboarding-2-back" class="btn btn-secondary" style="flex: 1; background: #6c757d; color: white; padding: 8px;">Back</button>
+                    <button id="onboarding-2-skip" class="btn btn-secondary" style="flex: 1; background: #6c757d; color: white; padding: 8px;">Skip</button>
+                    <button id="onboarding-2-next" class="btn btn-primary" style="flex: 1; padding: 8px;">Next</button>
                 </div>
             </div>
         </div>
 
         <div id="onboarding-3-screen" class="screen">
-            <div style="text-align: center; padding: 20px 0;">
-                <div style="font-size: 12px; color: #666; margin-bottom: 10px;">Step 3 of 3</div>
-                <h3 style="margin-bottom: 20px; font-size: 20px; font-weight: 600;">Use in Any LLM</h3>
-                <div style="width: 100%; max-width: 280px; margin: 0 auto 20px; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); background: #fff;">
+            <div style="text-align: center; padding: 15px 0;">
+                <div style="font-size: 11px; color: #666; margin-bottom: 8px;">Step 3 of 3</div>
+                <h3 style="margin-bottom: 12px; font-size: 18px; font-weight: 600;">Use in Any LLM</h3>
+                <div style="width: 100%; max-width: 240px; margin: 0 auto 12px; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); background: #fff;">
                     <img src="../images/step3.png" alt="Context inserted in an LLM interface" style="width: 100%; height: auto; display: block;" />
                 </div>
-                <p style="color: #666; margin-bottom: 30px; line-height: 1.6; padding: 0 20px;">
-                    Open ChatGPT, Claude, or any LLM. Click the extension, select your context box, and it copies automatically to your clipboard. Paste and go!
+                <p style="color: #666; margin-bottom: 15px; line-height: 1.5; padding: 0 20px; font-size: 13px;">
+                    Open ChatGPT, Claude or any LLM. Click the extension, select a context box version and insert the text directly or copy paste into your favorite LLM app. That's it!
                 </p>
                 <div style="display: flex; gap: 10px; padding: 0 20px;">
-                    <button id="onboarding-3-back" class="btn btn-secondary" style="flex: 1; background: #6c757d; color: white;">Back</button>
-                    <button id="onboarding-3-skip" class="btn btn-secondary" style="flex: 1; background: #6c757d; color: white;">Skip</button>
-                    <button id="onboarding-3-complete" class="btn btn-success" style="flex: 1;">Get Started</button>
+                    <button id="onboarding-3-back" class="btn btn-secondary" style="flex: 1; background: #6c757d; color: white; padding: 8px;">Back</button>
+                    <button id="onboarding-3-skip" class="btn btn-secondary" style="flex: 1; background: #6c757d; color: white; padding: 8px;">Skip</button>
+                    <button id="onboarding-3-complete" class="btn btn-success" style="flex: 1; padding: 8px;">Get Started</button>
                 </div>
             </div>
         </div>
@@ -382,8 +383,8 @@ Example:
                     <select id="feedback-type" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 4px; font-size: 14px;">
                         <option value="bug">Bug Report</option>
                         <option value="feature">Feature Request</option>
-                        <option value="improvement">Improvement</option>
-                        <option value="other">Other</option>
+                        <option value="general">General Feedback</option>
+                        <option value="compliment">Compliment</option>
                     </select>
                 </div>
                 <div class="form-group">

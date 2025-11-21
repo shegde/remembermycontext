@@ -46,23 +46,46 @@ const LLM_SITES = [
     'databricks.com',
     'mosaicml.com',
     'perplexity.ai',
+    'www.perplexity.ai',
     'poe.com',
     'character.ai',
     'you.com',
     'phind.com',
+    'www.phind.com',
     'copilot.microsoft.com',
-    'bing.com'
+    'bing.com',
+    'www.bing.com'
 ];
 
 function getLLMName(hostname) {
     if (!hostname) return null;
-    const hostnameLower = hostname.toLowerCase().replace('www.', '');
-    for (const llmSite of LLM_SITES) {
-        const siteClean = llmSite.replace('www.', '');
-        if (hostnameLower.includes(siteClean)) {
+    let hostnameLower = hostname.toLowerCase().trim();
+    hostnameLower = hostnameLower.replace(/^www\./, '');
+    
+    const sortedSites = [...LLM_SITES].sort((a, b) => {
+        const aClean = a.toLowerCase().replace(/^www\./, '').trim();
+        const bClean = b.toLowerCase().replace(/^www\./, '').trim();
+        return bClean.length - aClean.length;
+    });
+    
+    for (const llmSite of sortedSites) {
+        let siteClean = llmSite.toLowerCase().trim();
+        siteClean = siteClean.replace(/^www\./, '');
+        
+        if (hostnameLower === siteClean) {
+            return siteClean;
+        }
+        
+        if (hostnameLower.endsWith('.' + siteClean)) {
+            return siteClean;
+        }
+        
+        const regex = new RegExp('(^|\\.)' + siteClean.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(\\.|$)', 'i');
+        if (regex.test(hostnameLower)) {
             return siteClean;
         }
     }
+    
     return null;
 }
 
@@ -89,11 +112,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function initializeConfig() {
     const config = await getConfig();
     API_BASE = config.apiBaseUrl;
-    if (config.calendlyLink) {
-        const calendlyLink = document.getElementById('feedback-calendly-link');
-        if (calendlyLink) {
-            calendlyLink.href = config.calendlyLink;
-        }
+    const calendlyLink = document.getElementById('feedback-calendly-link');
+    if (calendlyLink && config.calendlyLink && config.calendlyLink.trim()) {
+        calendlyLink.href = config.calendlyLink;
     }
 }
 
@@ -110,17 +131,27 @@ async function initializeApp() {
                 const onboardingStatus = await checkOnboardingStatus();
                 if (!onboardingStatus || !onboardingStatus.completed) {
                     showScreen('onboarding-1');
-                } else {
-                    showScreen('main');
-                    await loadContexts();
+            } else {
+                showScreen('main');
+                loadContexts();
+                const lastBox = await chrome.storage.local.get(['lastContextBox']);
+                if (lastBox.lastContextBox) {
+                    currentBox = lastBox.lastContextBox;
+                    showVersions();
                 }
+            }
             } else if (testResponse.status === 401 || testResponse.status === 403) {
                 await handleLogout();
                 showScreen('welcome');
             } else {
                 currentUser = user.user;
                 showScreen('main');
-                await loadContexts();
+                loadContexts();
+                const lastBox = await chrome.storage.local.get(['lastContextBox']);
+                if (lastBox.lastContextBox) {
+                    currentBox = lastBox.lastContextBox;
+                    showVersions();
+                }
             }
         } catch (error) {
             await handleLogout();
@@ -150,9 +181,15 @@ function setupEventListeners() {
     safeAddEventListener('signup-submit', 'click', handleSignup);
     safeAddEventListener('login-submit', 'click', handleLogin);
     
-    safeAddEventListener('dashboard-btn', 'click', () => {
+    safeAddEventListener('dashboard-btn', 'click', async () => {
         const dashboardUrl = API_BASE.replace('/api/v1', '/dashboard');
-        chrome.tabs.create({ url: dashboardUrl });
+        if (currentUser && currentUser.access_token) {
+            const url = new URL(dashboardUrl);
+            url.searchParams.set('token', currentUser.access_token);
+            chrome.tabs.create({ url: url.toString() });
+        } else {
+            chrome.tabs.create({ url: dashboardUrl });
+        }
     });
     
     safeAddEventListener('logout-link', 'click', handleLogout);
@@ -322,10 +359,10 @@ async function handleSignup() {
             }
         } else {
             const errorMsg = await parseApiError(response, 'Registration failed');
-            showToast(errorMsg, 'error');
+            showToast(sanitizeError(errorMsg, 'Registration failed. Please try again.'), 'error');
         }
     } catch (error) {
-        showToast(`Network error: ${error.message}`, 'error');
+        showToast(sanitizeError(error, 'Network error. Please check your connection.'), 'error');
     }
 }
 
@@ -379,7 +416,7 @@ async function handleLogin() {
             }
         }
     } catch (error) {
-        showToast(`Network error: ${error.message}`, 'error');
+        showToast(sanitizeError(error, 'Network error. Please check your connection.'), 'error');
     }
 }
 
@@ -441,6 +478,7 @@ function showVersions() {
         `${getBoxEmoji(currentBox)} ${currentBox} Context`;
     showScreen('versions');
     loadVersions();
+    chrome.storage.local.set({ lastContextBox: currentBox });
 }
 
 function getBoxEmoji(boxName) {
@@ -474,6 +512,15 @@ async function loadVersions() {
 function displayVersions(versions) {
     const container = document.getElementById('versions-list');
     container.innerHTML = '';
+    
+    const editBtn = document.getElementById('edit-latest-btn');
+    if (editBtn) {
+        if (!versions || versions.length === 0) {
+            editBtn.textContent = 'Create';
+        } else {
+            editBtn.textContent = 'Edit Latest';
+        }
+    }
     
     if (!versions || versions.length === 0) {
         const emptyMsg = createElement('div', 'info-box', 'No versions yet');
@@ -606,15 +653,90 @@ async function insertVersion(boxName, versionNumber) {
             const data = await response.json();
             const decryptedText = await decryptText(data.ciphertext);
             
-            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-            const currentSite = tabs[0] ? new URL(tabs[0].url).hostname : 'unknown';
+            let activeTab = null;
+            let retries = 10;
+            
+            while (retries > 0 && !activeTab) {
+                try {
+                    const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+                    
+                    if (tabs && tabs.length > 0) {
+                        const tab = tabs[0];
+                        if (tab.url && 
+                            tab.url !== 'chrome://newtab/' && 
+                            !tab.url.startsWith('chrome://') && 
+                            !tab.url.startsWith('chrome-extension://') &&
+                            !tab.url.startsWith('edge://')) {
+                            activeTab = tab;
+                        }
+                    }
+                    
+                    if (activeTab) break;
+                } catch (e) {
+                }
+                
+                retries--;
+                if (retries > 0) {
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                }
+            }
+            
+            if (!activeTab || !activeTab.url) {
+                showToast('No active tab found. Please open an LLM site first.', 'error');
+                return;
+            }
+            
+            if (activeTab.url === 'chrome://newtab/' || activeTab.url.startsWith('chrome://') || 
+                activeTab.url.startsWith('chrome-extension://') || activeTab.url.startsWith('edge://')) {
+                showToast('Please open an LLM site (ChatGPT, Claude, Perplexity, Mistral, etc.) first.', 'error');
+                return;
+            }
+            
+            let currentSite;
+            try {
+                const url = new URL(activeTab.url);
+                if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+                    showToast('Cannot insert into Chrome pages. Please open an LLM site first.', 'error');
+                    return;
+                }
+                currentSite = url.hostname.toLowerCase().replace(/^www\./, '');
+            } catch (e) {
+                showToast('Invalid URL. Please open an LLM site first.', 'error');
+                return;
+            }
+            
             const llmName = getLLMName(currentSite);
             
-            await chrome.runtime.sendMessage({
-                action: "insertText",
-                text: decryptedText
-            });
-            showToast('Inserted into page!');
+            if (!llmName) {
+                showToast(`Please open an LLM site first. (Current: ${currentSite})`, 'error');
+                return;
+            }
+            
+            try {
+                const result = await new Promise((resolve) => {
+                    chrome.runtime.sendMessage({
+                        action: "insertText",
+                        text: decryptedText
+                    }, (response) => {
+                        if (chrome.runtime.lastError) {
+                            resolve({ success: false, error: chrome.runtime.lastError.message });
+                        } else {
+                            resolve(response || { success: false, error: 'insert_failed' });
+                        }
+                    });
+                });
+                
+                if (result && result.success) {
+                    showToast('Text inserted successfully!', 'success');
+                } else {
+                    const errorMsg = result?.error === 'insert_failed' 
+                        ? 'Could not find input field. Try clicking it first.'
+                        : sanitizeError(result?.error, 'Failed to insert text. Please try again.');
+                    showToast(errorMsg, 'error');
+                }
+            } catch (error) {
+                showToast(sanitizeError(error, 'Failed to insert text. Please try again.'), 'error');
+            }
             
             await fetch(`${API_BASE}/contexts/${boxName}/versions/${versionNumber}/mark_used`, {
                 method: 'POST',
@@ -726,10 +848,10 @@ async function handleSave() {
             showVersions();
         } else {
             const errorMsg = await parseApiError(response, 'Failed to save');
-            showToast(errorMsg, 'error');
+            showToast(sanitizeError(errorMsg, 'Failed to save. Please try again.'), 'error');
         }
     } catch (error) {
-        showToast(`Network error: ${error.message}`, 'error');
+        showToast(sanitizeError(error, 'Network error. Please check your connection.'), 'error');
     }
 }
 
@@ -844,10 +966,10 @@ async function handleForgotPassword() {
             showScreen('login');
         } else {
             const errorMsg = await parseApiError(response, 'Failed to send reset link');
-            showToast(errorMsg, 'error');
+            showToast(sanitizeError(errorMsg, 'Failed to send reset link. Please try again.'), 'error');
         }
     } catch (error) {
-        showToast(`Network error: ${error.message}`, 'error');
+        showToast(sanitizeError(error, 'Network error. Please check your connection.'), 'error');
     }
 }
 
@@ -885,10 +1007,10 @@ async function handleResetPassword() {
             showScreen('login');
         } else {
             const errorMsg = await parseApiError(response, 'Failed to reset password');
-            showToast(errorMsg, 'error');
+            showToast(sanitizeError(errorMsg, 'Failed to reset password. Please try again.'), 'error');
         }
     } catch (error) {
-        showToast(`Network error: ${error.message}`, 'error');
+        showToast(sanitizeError(error, 'Network error. Please check your connection.'), 'error');
     }
 }
 
@@ -960,10 +1082,10 @@ async function handleChangePassword() {
             showScreen('login');
         } else {
             const errorMsg = await parseApiError(response, 'Failed to change password');
-            showToast(errorMsg, 'error');
+            showToast(sanitizeError(errorMsg, 'Failed to change password. Please try again.'), 'error');
         }
     } catch (error) {
-        showToast(`Network error: ${error.message}`, 'error');
+        showToast(sanitizeError(error, 'Network error. Please check your connection.'), 'error');
     }
 }
 
@@ -1003,7 +1125,7 @@ async function handleResendVerification() {
             showToast(errorMsg, 'error');
         }
     } catch (error) {
-        showToast(`Network error: ${error.message}`, 'error');
+        showToast(sanitizeError(error, 'Network error. Please check your connection.'), 'error');
     } finally {
         if (btn) {
             setTimeout(() => {
@@ -1075,10 +1197,10 @@ async function handleDeleteAccount() {
             document.getElementById('delete-account-btn').style.display = 'none';
         } else {
             const errorMsg = await parseApiError(response, 'Failed to request deletion');
-            showToast(errorMsg, 'error');
+            showToast(sanitizeError(errorMsg, 'Failed to request deletion. Please try again.'), 'error');
         }
     } catch (error) {
-        showToast(`Network error: ${error.message}`, 'error');
+        showToast(sanitizeError(error, 'Network error. Please check your connection.'), 'error');
     }
 }
 
@@ -1097,15 +1219,15 @@ async function handleCancelDeletion() {
             document.getElementById('delete-account-btn').style.display = 'block';
         } else {
             const errorMsg = await parseApiError(response, 'Failed to cancel deletion');
-            showToast(errorMsg, 'error');
+            showToast(sanitizeError(errorMsg, 'Failed to cancel deletion. Please try again.'), 'error');
         }
     } catch (error) {
-        showToast(`Network error: ${error.message}`, 'error');
+        showToast(sanitizeError(error, 'Network error. Please check your connection.'), 'error');
     }
 }
 
 async function handleSubmitFeedback() {
-    const type = document.getElementById('feedback-type').value;
+    let type = document.getElementById('feedback-type').value;
     const message = document.getElementById('feedback-message').value.trim();
     
     if (!message) {
@@ -1143,10 +1265,10 @@ async function handleSubmitFeedback() {
             }, 1500);
         } else {
             const errorMsg = await parseApiError(response, 'Failed to submit feedback');
-            showToast(errorMsg, 'error');
+            showToast(sanitizeError(errorMsg, 'Failed to submit feedback. Please try again.'), 'error');
         }
     } catch (error) {
-        showToast(`Network error: ${error.message}`, 'error');
+        showToast(sanitizeError(error, 'Network error. Please check your connection.'), 'error');
     } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = originalText;
@@ -1185,10 +1307,10 @@ async function handleUpgradeInterest() {
             }, 1500);
         } else {
             const errorMsg = await parseApiError(response, 'Failed to submit interest');
-            showToast(errorMsg, 'error');
+            showToast(sanitizeError(errorMsg, 'Failed to submit interest. Please try again.'), 'error');
         }
     } catch (error) {
-        showToast(`Network error: ${error.message}`, 'error');
+        showToast(sanitizeError(error, 'Network error. Please check your connection.'), 'error');
     } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = originalText;
@@ -1205,3 +1327,10 @@ function showToast(message, type = 'success') {
         toast.className = 'toast';
     }, 3000);
 }
+
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === "tabChanged") {
+        sendResponse({ received: true });
+    }
+    return true;
+});

@@ -86,12 +86,15 @@ LLM_SITES = [
     'databricks.com',
     'mosaicml.com',
     'perplexity.ai',
+    'www.perplexity.ai',
     'poe.com',
     'character.ai',
     'you.com',
     'phind.com',
+    'www.phind.com',
     'copilot.microsoft.com',
-    'bing.com'
+    'bing.com',
+    'www.bing.com'
 ]
 
 LLM_DISPLAY_NAMES = {
@@ -137,11 +140,14 @@ LLM_DISPLAY_NAMES = {
     'databricks.com': 'DBRX',
     'mosaicml.com': 'MPT',
     'perplexity.ai': 'Perplexity',
+    'www.perplexity.ai': 'Perplexity',
     'poe.com': 'Poe',
     'character.ai': 'Character.ai',
     'you.com': 'You.com',
     'phind.com': 'Phind',
+    'www.phind.com': 'Phind',
     'copilot.microsoft.com': 'Copilot',
-    'bing.com': 'Bing'
+    'bing.com': 'Bing',
+    'www.bing.com': 'Bing'
 }
 
