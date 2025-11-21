@@ -1,3 +1,10 @@
+/**
+ * Parses API error responses and extracts user-friendly messages
+ * Handles various error formats from FastAPI backend
+ * @param {Response} response - Fetch API response object
+ * @param {string} defaultMessage - Fallback message if parsing fails
+ * @returns {Promise<string>} User-friendly error message
+ */
 function parseApiError(response, defaultMessage) {
     return response.text().then(text => {
         if (!text) {
@@ -78,12 +85,24 @@ function parseApiError(response, defaultMessage) {
     });
 }
 
+/**
+ * Escapes HTML special characters to prevent XSS attacks
+ * @param {string} text - Text to escape
+ * @returns {string} HTML-escaped text
+ */
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
 }
 
+/**
+ * Creates a DOM element with optional class and text
+ * @param {string} tag - HTML tag name
+ * @param {string} className - CSS class name (optional)
+ * @param {string} textContent - Text content (optional)
+ * @returns {HTMLElement} Created element
+ */
 function createElement(tag, className, textContent) {
     const element = document.createElement(tag);
     if (className) {
@@ -95,11 +114,21 @@ function createElement(tag, className, textContent) {
     return element;
 }
 
+/**
+ * Validates email address format
+ * @param {string} email - Email address to validate
+ * @returns {boolean} True if valid email format
+ */
 function validateEmail(email) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
 }
 
+/**
+ * Validates password meets minimum requirements
+ * @param {string} password - Password to validate
+ * @returns {boolean} True if password is at least 8 characters
+ */
 function validatePassword(password) {
     return password && password.length >= 8;
 }

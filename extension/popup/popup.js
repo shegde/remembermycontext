@@ -57,6 +57,11 @@ const LLM_SITES = [
     'www.bing.com'
 ];
 
+/**
+ * Maps a hostname to its LLM display name
+ * @param {string} hostname - The domain name to match
+ * @returns {string|null} LLM name or null if not found
+ */
 function getLLMName(hostname) {
     if (!hostname) return null;
     let hostnameLower = hostname.toLowerCase().trim();
@@ -89,6 +94,13 @@ function getLLMName(hostname) {
     return null;
 }
 
+/**
+ * Makes an authenticated API call to the backend
+ * Automatically handles token refresh on 401 errors
+ * @param {string} url - API endpoint URL
+ * @param {Object} options - Fetch options
+ * @returns {Promise<Response>} Fetch response
+ */
 async function apiCall(url, options = {}) {
     const response = await fetch(url, options);
     
@@ -109,6 +121,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupEventListeners();
 });
 
+/**
+ * Initializes extension configuration from storage
+ * Sets up API base URL based on environment
+ */
 async function initializeConfig() {
     const config = await getConfig();
     API_BASE = config.apiBaseUrl;
@@ -118,6 +134,10 @@ async function initializeConfig() {
     }
 }
 
+/**
+ * Main initialization function
+ * Sets up config, checks auth status, loads data, and attaches event listeners
+ */
 async function initializeApp() {
     const user = await chrome.storage.local.get(['user']);
     if (user.user && user.user.access_token) {
@@ -654,7 +674,7 @@ async function insertVersion(boxName, versionNumber) {
             const decryptedText = await decryptText(data.ciphertext);
             
             let activeTab = null;
-            let retries = 10;
+            let retries = RETRY_CONFIG.MAX_RETRIES;
             
             while (retries > 0 && !activeTab) {
                 try {
@@ -662,11 +682,11 @@ async function insertVersion(boxName, versionNumber) {
                     
                     if (tabs && tabs.length > 0) {
                         const tab = tabs[0];
-                        if (tab.url && 
-                            tab.url !== 'chrome://newtab/' && 
-                            !tab.url.startsWith('chrome://') && 
-                            !tab.url.startsWith('chrome-extension://') &&
-                            !tab.url.startsWith('edge://')) {
+                        const isValidTab = tab.url && 
+                                          tab.url !== CHROME_NEWTAB && 
+                                          !CHROME_PROTOCOLS.some(proto => tab.url.startsWith(proto));
+                        
+                        if (isValidTab) {
                             activeTab = tab;
                         }
                     }
@@ -677,7 +697,7 @@ async function insertVersion(boxName, versionNumber) {
                 
                 retries--;
                 if (retries > 0) {
-                    await new Promise(resolve => setTimeout(resolve, 200));
+                    await new Promise(resolve => setTimeout(resolve, RETRY_CONFIG.DELAY_MS));
                 }
             }
             
@@ -766,6 +786,11 @@ async function insertVersion(boxName, versionNumber) {
     }
 }
 
+/**
+ * Decrypts context text using user's encryption key
+ * @param {string} ciphertext - Encrypted text from backend
+ * @returns {Promise<string>} Decrypted plaintext
+ */
 async function decryptText(ciphertext) {
     try {
         const response = await fetch(`${API_BASE}/contexts/decrypt`, {
@@ -1317,6 +1342,11 @@ async function handleUpgradeInterest() {
     }
 }
 
+/**
+ * Displays a toast notification to the user
+ * @param {string} message - Message to display
+ * @param {string} type - Toast type: 'success', 'error', or 'info'
+ */
 function showToast(message, type = 'success') {
     const toast = document.getElementById('toast');
     toast.textContent = message;

@@ -1,3 +1,8 @@
+/**
+ * Formats date string to readable format (e.g., "21 Nov 2025")
+ * @param {string|Date} dateString - Date to format
+ * @returns {string} Formatted date or 'Never'/'Invalid date'
+ */
 function formatDate(dateString) {
     if (!dateString) return 'Never';
     
@@ -23,6 +28,11 @@ function formatDate(dateString) {
     return `${day} ${month} ${year}`;
 }
 
+/**
+ * Formats date string with time (e.g., "21 Nov 2025, 14:30:45")
+ * @param {string|Date} dateString - Date to format
+ * @returns {string} Formatted date with time or 'Never'/'Invalid date'
+ */
 function formatDateTime(dateString) {
     if (!dateString) return 'Never';
     
@@ -61,6 +71,11 @@ function formatDateTime(dateString) {
     return `${day} ${month} ${year}, ${hours}:${minutes}:${seconds}`;
 }
 
+/**
+ * Formats date in short format (e.g., "21/11/2025")
+ * @param {string|Date} dateString - Date to format
+ * @returns {string} Formatted date in DD/MM/YYYY format
+ */
 function formatDateShort(dateString) {
     if (!dateString) return 'Never';
     
