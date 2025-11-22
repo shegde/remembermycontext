@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RememberMyContext - Never Repeat Yourself with AI Tools</title>
+    <meta name="description" content="Open-source context management for AI power users. Store your context once, use it everywhere. Works with ChatGPT, Claude, and more. Stop copy-pasting, save hours." />
+    <link rel="stylesheet" href="/homepage-static/style.css">
+</head>
+<body>
+    <section class="hero">
+        <div class="container">
+            <div class="hero-content animate-fade-in">
+                <div class="hero-left">
+                    <div class="hero-tagline">
+                        <span class="tagline-badge">Open Source • Privacy-First</span>
+                    </div>
+                    
+                    <h1>
+                        Introduce yourself <span class="gradient-text">once</span>.<br>
+                        Remember it <span class="gradient-text">forever</span>.
+                    </h1>
+                    
+                    <p>
+                        Stop repeating yourself across ChatGPT, Claude, and other AI tools. 
+                        Store your context once, use it everywhere. No more copy-pasting.
+                    </p>
+
+                    <div class="hero-buttons">
+                        <a href="https://chrome.google.com/webstore" class="btn btn-hero" target="_blank">
+                            Try the Extension
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                        </a>
+                        <a href="#" class="btn btn-outline">Watch Demo</a>
+                    </div>
+
+                    <div class="social-proof">
+                        <div class="user-avatars">
+                            <div class="avatar"></div>
+                            <div class="avatar"></div>
+                            <div class="avatar"></div>
+                            <div class="avatar"></div>
+                            <span class="social-text">500+ users</span>
+                        </div>
+                        <div class="social-text">
+                            <span style="margin-right: 0.5rem;">⭐⭐⭐⭐⭐</span>
+                            Open source
+                        </div>
+                    </div>
+                </div>
+
+                <div class="hero-right">
+                    <div class="hero-image-wrapper">
+                        <img src="/homepage-static/assets/hero-interface.jpg" alt="RememberMyContext Interface" class="hero-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <div style="width: 100%; height: 400px; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius: 1rem; position: relative; overflow: hidden; display: none;">
+                            <svg style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
+                                <line x1="20%" y1="15%" x2="45%" y2="25%" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+                                <line x1="20%" y1="15%" x2="15%" y2="40%" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+                                <line x1="45%" y1="25%" x2="50%" y2="55%" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+                                <line x1="45%" y1="25%" x2="70%" y2="35%" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+                                <line x1="15%" y1="40%" x2="30%" y2="65%" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+                                <line x1="50%" y1="55%" x2="65%" y2="70%" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+                                <line x1="70%" y1="35%" x2="75%" y2="20%" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+                                <circle cx="20%" cy="15%" r="6" fill="#22d3ee" opacity="0.8"/>
+                                <circle cx="45%" cy="25%" r="6" fill="#22d3ee" opacity="0.8"/>
+                                <circle cx="15%" cy="40%" r="6" fill="#22d3ee" opacity="0.8"/>
+                                <circle cx="50%" cy="55%" r="6" fill="#22d3ee" opacity="0.8"/>
+                                <circle cx="70%" cy="35%" r="6" fill="#22d3ee" opacity="0.8"/>
+                                <circle cx="30%" cy="65%" r="6" fill="#22d3ee" opacity="0.8"/>
+                                <circle cx="75%" cy="20%" r="6" fill="#22d3ee" opacity="0.8"/>
+                                <circle cx="65%" cy="70%" r="6" fill="#22d3ee" opacity="0.8"/>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section problem-section">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-label label-destructive">The Problem</span>
+                <h2>Context Management is Broken</h2>
+                <p>Power users are frustrated with context management. Here's why:</p>
+            </div>
+            <div class="problem-grid">
+                <div class="problem-card">
+                    <div class="problem-header">
+                        <div class="problem-icon">
+                            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path></svg>
+                        </div>
+                        <span class="frustration-tag">Frustration: 10/10</span>
+                    </div>
+                    <h3>Endless Copy-Pasting</h3>
+                    <p>Manually copying context between ChatGPT, Claude, and other AI tools wastes valuable time.</p>
+                </div>
+                <div class="problem-card">
+                    <div class="problem-header">
+                        <div class="problem-icon">
+                            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </div>
+                        <span class="frustration-tag">Frustration: 9/10</span>
+                    </div>
+                    <h3>Time Drain</h3>
+                    <p>Repeatedly explaining your background, preferences, and context in every new conversation.</p>
+                </div>
+                <div class="problem-card">
+                    <div class="problem-header">
+                        <div class="problem-icon">
+                            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </div>
+                        <span class="frustration-tag">Frustration: 8/10</span>
+                    </div>
+                    <h3>Lost Context</h3>
+                    <p>Information disappears when context windows fill up or when switching between platforms.</p>
+                </div>
+                <div class="problem-card">
+                    <div class="problem-header">
+                        <div class="problem-icon">
+                            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                        </div>
+                        <span class="frustration-tag">Frustration: 7/10</span>
+                    </div>
+                    <h3>Memory Limitations</h3>
+                    <p>LLMs eventually forget what you told them, forcing you to start over repeatedly.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-label label-success">Simple Setup</span>
+                <h2>Get Started in Under a Minute</h2>
+                <p>Four simple steps to never repeat yourself again</p>
+            </div>
+            <div class="steps-grid">
+                <div class="step-connector"></div>
+                <div class="step-card">
+                    <div class="step-header">
+                        <div class="step-icon">
+                            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        </div>
+                        <div class="step-number">01</div>
+                    </div>
+                    <h3>Install the Extension</h3>
+                    <p>Add RememberMyContext to your browser in seconds. Available for Chrome, Firefox, and Edge.</p>
+                </div>
+                <div class="step-card">
+                    <div class="step-header">
+                        <div class="step-icon">
+                            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                        </div>
+                        <div class="step-number">02</div>
+                    </div>
+                    <h3>Set Up Your Context</h3>
+                    <p>Store your professional background, writing style, preferences, and any information you frequently share with AI tools.</p>
+                </div>
+                <div class="step-card">
+                    <div class="step-header">
+                        <div class="step-icon">
+                            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        </div>
+                        <div class="step-number">03</div>
+                    </div>
+                    <h3>Auto-Populate</h3>
+                    <p>Your context automatically appears when you start new conversations. No more manual copying.</p>
+                </div>
+                <div class="step-card">
+                    <div class="step-header">
+                        <div class="step-icon">
+                            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path></svg>
+                        </div>
+                        <div class="step-number">04</div>
+                    </div>
+                    <h3>Use Anywhere</h3>
+                    <p>Works seamlessly across ChatGPT, Claude, Gemini, and other LLM applications.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section benefits-section">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-label label-primary">Benefits</span>
+                <h2>Why RememberMyContext?</h2>
+                <p>Built by power users, for power users</p>
+            </div>
+            <div class="benefits-grid">
+                <div class="benefit-card">
+                    <div class="benefit-content">
+                        <div class="benefit-icon">
+                            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </div>
+                        <div class="benefit-text">
+                            <h3>Save Hours Every Week</h3>
+                            <p>Eliminate repetitive context-setting. Focus on what matters—getting quality AI responses.</p>
+                            <div class="benefit-stat">
+                                <span class="stat-value">73%</span>
+                                <span class="stat-label">Time saved on setup</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="benefit-card">
+                    <div class="benefit-content">
+                        <div class="benefit-icon">
+                            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"></rect><rect width="7" height="5" x="14" y="3" rx="1"></rect><rect width="7" height="9" x="14" y="12" rx="1"></rect><rect width="7" height="5" x="3" y="16" rx="1"></rect></svg>
+                        </div>
+                        <div class="benefit-text">
+                            <h3>Multi-Platform Support</h3>
+                            <p>One context, every platform. Works with ChatGPT, Claude, Gemini, and more.</p>
+                            <div class="benefit-stat">
+                                <span class="stat-value">5+</span>
+                                <span class="stat-label">Supported platforms</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="benefit-card">
+                    <div class="benefit-content">
+                        <div class="benefit-icon">
+                            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.63a2 2 0 0 1-1.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path><path d="M9 12l2 2 4-4"></path></svg>
+                        </div>
+                        <div class="benefit-text">
+                            <h3>Privacy-First Design</h3>
+                            <p>Your data stays yours. Set expiration dates, control what's shared, and manage everything locally.</p>
+                            <div class="benefit-stat">
+                                <span class="stat-value">100%</span>
+                                <span class="stat-label">Data ownership</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="benefit-card">
+                    <div class="benefit-content">
+                        <div class="benefit-icon">
+                            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                        </div>
+                        <div class="benefit-text">
+                            <h3>Open Source</h3>
+                            <p>Transparent, community-driven, and fully auditable. No hidden agendas or locked features.</p>
+                            <div class="benefit-stat">
+                                <span class="stat-value">∞</span>
+                                <span class="stat-label">Transparency</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-label label-success">Testimonials</span>
+                <h2>Loved by AI Power Users</h2>
+                <p>Real feedback from people who were tired of repeating themselves</p>
+            </div>
+            <div class="testimonials-grid">
+                <div class="testimonial-card">
+                    <div class="quote-icon">
+                        <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"></path><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"></path></svg>
+                    </div>
+                    <div class="stars">⭐⭐⭐⭐⭐</div>
+                    <p class="testimonial-text">Manual copy-pasting between AI tools was eating up so much of my workday. This is a complete game-changer.</p>
+                    <div class="testimonial-author">
+                        <p class="author-name">Sarah Chen</p>
+                        <p class="author-role">Product Manager</p>
+                        <span class="user-tag">High-frequency career user</span>
+                    </div>
+                </div>
+                <div class="testimonial-card">
+                    <div class="quote-icon">
+                        <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"></path><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"></path></svg>
+                    </div>
+                    <div class="stars">⭐⭐⭐⭐⭐</div>
+                    <p class="testimonial-text">I love having control over when my context expires. Finally, I can share sensitive information temporarily without worrying.</p>
+                    <div class="testimonial-author">
+                        <p class="author-name">Marcus Williams</p>
+                        <p class="author-role">Healthcare Consultant</p>
+                        <span class="user-tag">Privacy-conscious professional</span>
+                    </div>
+                </div>
+                <div class="testimonial-card">
+                    <div class="quote-icon">
+                        <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"></path><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"></path></svg>
+                    </div>
+                    <div class="stars">⭐⭐⭐⭐⭐</div>
+                    <p class="testimonial-text">Switching between ChatGPT on mobile and Claude on desktop used to mean starting over. Not anymore.</p>
+                    <div class="testimonial-author">
+                        <p class="author-name">Emily Rodriguez</p>
+                        <p class="author-role">Content Strategist</p>
+                        <span class="user-tag">Multi-platform user</span>
+                    </div>
+                </div>
+                <div class="testimonial-card">
+                    <div class="quote-icon">
+                        <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"></path><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"></path></svg>
+                    </div>
+                    <div class="stars">⭐⭐⭐⭐⭐</div>
+                    <p class="testimonial-text">The frustration of hitting context limits and losing everything was a 10/10. This brings it down to zero.</p>
+                    <div class="testimonial-author">
+                        <p class="author-name">David Park</p>
+                        <p class="author-role">Software Developer</p>
+                        <span class="user-tag">Technical power user</span>
+                    </div>
+                </div>
+                <div class="testimonial-card">
+                    <div class="quote-icon">
+                        <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"></path><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"></path></svg>
+                    </div>
+                    <div class="stars">⭐⭐⭐⭐⭐</div>
+                    <p class="testimonial-text">Being able to organize different context profiles for work vs. personal use is brilliant. So much more efficient.</p>
+                    <div class="testimonial-author">
+                        <p class="author-name">Jessica Thompson</p>
+                        <p class="author-role">Freelance Writer</p>
+                        <span class="user-tag">Multi-context user</span>
+                    </div>
+                </div>
+                <div class="testimonial-card">
+                    <div class="quote-icon">
+                        <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"></path><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"></path></svg>
+                    </div>
+                    <div class="stars">⭐⭐⭐⭐⭐</div>
+                    <p class="testimonial-text">Open source means I can verify exactly what's happening with my data. That trust is invaluable.</p>
+                    <div class="testimonial-author">
+                        <p class="author-name">Alex Kumar</p>
+                        <p class="author-role">Security Engineer</p>
+                        <span class="user-tag">Privacy advocate</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="cta-section">
+        <div class="container">
+            <div class="cta-content">
+                <div class="cta-badge">
+                    <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                    <span>100% Open Source</span>
+                </div>
+                <h2>
+                    Stop Repeating Yourself.<br>
+                    Start Building Better.
+                </h2>
+                <p>
+                    Join hundreds of AI power users who've saved hours of context-setting time. 
+                    Free and privacy-first.
+                </p>
+                <div class="cta-buttons">
+                    <a href="https://chrome.google.com/webstore" class="btn btn-cta-outline" target="_blank">
+                        Try the Extension
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    </a>
+                    <a href="#" class="btn btn-cta-outline">
+                        <svg fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.17 6.839 9.49.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.463-1.11-1.463-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.167 22 16.418 22 12c0-5.523-4.477-10-10-10z" clip-rule="evenodd"></path></svg>
+                        View on GitHub
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <h3>RememberMyContext</h3>
+                    <p>
+                        Open-source context management for AI power users. 
+                        Never repeat yourself again.
+                    </p>
+                    <div class="social-icons">
+                        <a href="#" class="social-icon" aria-label="GitHub">
+                            <svg class="icon" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.17 6.839 9.49.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.463-1.11-1.463-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.167 22 16.418 22 12c0-5.523-4.477-10-10-10z" clip-rule="evenodd"></path></svg>
+                        </a>
+                        <a href="#" class="social-icon" aria-label="Twitter">
+                            <svg class="icon" fill="currentColor" viewBox="0 0 24 24"><path d="M8.29 20.251c7.547 0 11.675-6.253 11.675-11.675 0-.178 0-.355-.012-.53A8.348 8.348 0 0022 5.92a8.19 8.19 0 01-2.357.646 4.118 4.118 0 001.804-2.27 8.224 8.224 0 01-2.605.996 4.107 4.107 0 00-6.993 3.743 11.65 11.65 0 01-8.457-4.287 4.106 4.106 0 001.27 5.477A4.072 4.072 0 012.8 9.713v.052a4.105 4.105 0 003.292 4.022 4.095 4.095 0 01-1.853.07 4.108 4.108 0 003.834 2.85A8.233 8.233 0 012 18.407a11.616 11.616 0 006.29 1.84"></path></svg>
+                        </a>
+                    </div>
+                </div>
+                <div class="footer-column">
+                    <h4>Product</h4>
+                    <ul>
+                        <li><a href="/">Features</a></li>
+                        <li><a href="/">Documentation</a></li>
+                        <li><a href="/">Roadmap</a></li>
+                        <li><a href="/">Changelog</a></li>
+                    </ul>
+                </div>
+                <div class="footer-column">
+                    <h4>Community</h4>
+                    <ul>
+                        <li><a href="/">Discord</a></li>
+                        <li><a href="/">GitHub Discussions</a></li>
+                        <li><a href="/">Contributing</a></li>
+                        <li><a href="/">Support</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>© 2024 RememberMyContext. Open source under MIT License.</p>
+                <p class="heart">
+                    Made with <svg class="heart-icon" fill="currentColor" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path></svg> by the community
+                </p>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

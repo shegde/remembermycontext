@@ -20,6 +20,7 @@ from .crud.admin import ensure_admin_exists
 BASE_DIR = Path(__file__).parent
 DASHBOARD_DIR = BASE_DIR / "dashboard"
 ADMIN_DIR = BASE_DIR / "admin"
+HOMEPAGE_DIR = BASE_DIR / "homepage"
 
 
 @asynccontextmanager
@@ -101,14 +102,27 @@ try:
 except RuntimeError:
     logger.warning("Admin directory not found, skipping admin static files mount")
 
+try:
+    app.mount("/homepage-static", StaticFiles(directory=str(HOMEPAGE_DIR)), name="homepage-static")
+except RuntimeError:
+    logger.warning("Homepage directory not found, skipping homepage static files mount")
 
-@app.get("/")
+
+@app.get("/", response_class=HTMLResponse)
 def read_root():
-    return {
-        "name": "RememberMyContext API",
-        "version": "1.0.0",
-        "status": "operational"
-    }
+    homepage_path = HOMEPAGE_DIR / "index.html"
+    if homepage_path.exists():
+        return FileResponse(str(homepage_path))
+    else:
+        logger.warning(f"Homepage file not found at {homepage_path}")
+        return JSONResponse(
+            status_code=200,
+            content={
+                "name": "RememberMyContext API",
+                "version": "1.0.0",
+                "status": "operational"
+            }
+        )
 
 
 @app.get("/health")
