@@ -89,3 +89,7 @@ function formatDateShort(dateString) {
     return `${day}/${month}/${year}`;
 }
 
+function pluralize(count, singular, plural) {
+    return count === 1 ? singular : plural;
+}
+

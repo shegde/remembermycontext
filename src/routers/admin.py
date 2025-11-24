@@ -16,6 +16,8 @@ from ..models import (
     User, ContextVersion, AnalyticsEvent, Feedback, 
     UpgradeInterest, InstallEvent, OnboardingEvent
 )
+from ..crud.context import preview_unused_versions, delete_unused_versions
+from ..config import settings
 from ..constants import ErrorCode, ContextBox, LLM_SITES, LLM_DISPLAY_NAMES
 from ..logging_config import logger
 from ..middleware import limiter
@@ -2074,7 +2076,7 @@ def get_db_view(
             .limit(page_size)
         ).all()
         
-        headers = ["ID", "User ID", "Box Name", "Version", "Uses Count", "Last LLM", "Created At"]
+        headers = ["ID", "User ID", "Box Name", "Version", "Uses Count", "Last Used At", "Last LLM", "Created At"]
         rows = []
         for ctx in contexts:
             rows.append([
@@ -2083,6 +2085,7 @@ def get_db_view(
                 ctx.box_name,
                 str(ctx.version_number),
                 str(ctx.uses_count),
+                ctx.last_used_at.strftime("%Y-%m-%d %H:%M") if ctx.last_used_at else "Never",
                 ctx.last_llm_used or "N/A",
                 ctx.created_at.strftime("%Y-%m-%d %H:%M") if ctx.created_at else ""
             ])
@@ -2240,7 +2243,7 @@ def get_all_table_data(table_name: str, session: Session):
     
     elif table_name == "contexts":
         contexts = session.exec(select(ContextVersion).order_by(ContextVersion.created_at.desc())).all()
-        headers = ["ID", "User ID", "Box Name", "Version", "Uses Count", "Last LLM", "Created At"]
+        headers = ["ID", "User ID", "Box Name", "Version", "Uses Count", "Last Used At", "Last LLM", "Created At"]
         rows = []
         for ctx in contexts:
             rows.append([
@@ -2249,6 +2252,7 @@ def get_all_table_data(table_name: str, session: Session):
                 ctx.box_name,
                 str(ctx.version_number),
                 str(ctx.uses_count),
+                ctx.last_used_at.strftime("%Y-%m-%d %H:%M:%S") if ctx.last_used_at else "Never",
                 ctx.last_llm_used or "N/A",
                 ctx.created_at.strftime("%Y-%m-%d %H:%M:%S") if ctx.created_at else ""
             ])
@@ -2696,6 +2700,75 @@ def get_performance_slow_operations(
         "total_slow_5s": len(slow_5s)
     }
 
+
+@router.post("/cleanup/preview")
+def preview_cleanup(
+    days: Optional[int] = None,
+    admin: dict = Depends(get_admin_user),
+    session: Session = Depends(get_session)
+):
+
+    if days is None:
+        days = settings.VERSION_AUTO_DELETE_DAYS
+
+    if days < settings.VERSION_AUTO_DELETE_DAYS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "message": f"Days threshold must be at least {settings.VERSION_AUTO_DELETE_DAYS} days for safety",
+                "minimum_days": settings.VERSION_AUTO_DELETE_DAYS
+            }
+        )
+
+    preview = preview_unused_versions(session, days)
+    total_count = len(preview)
+    cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
+
+    return {
+        "days_threshold": days,
+        "cutoff_date": cutoff_date.isoformat(),
+        "total_versions_to_delete": total_count,
+        "preview": preview
+    }
+
+
+@router.post("/cleanup/execute")
+def execute_cleanup(
+    days: Optional[int] = None,
+    admin: dict = Depends(get_admin_user),
+    session: Session = Depends(get_session)
+):
+    
+    if days is None:
+        days = settings.VERSION_AUTO_DELETE_DAYS
+
+    if days < settings.VERSION_AUTO_DELETE_DAYS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "message": f"Days threshold must be at least {settings.VERSION_AUTO_DELETE_DAYS} days for safety",
+                "minimum_days": settings.VERSION_AUTO_DELETE_DAYS
+            }
+        )
+
+    try:
+        deleted_count = delete_unused_versions(session, days)
+        logger.info(
+            f"Admin cleanup executed: deleted {deleted_count} versions with {days} days threshold"
+        )
+
+        return {
+            "success": True,
+            "days_threshold": days,
+            "deleted_count": deleted_count,
+            "message": f"Successfully deleted {deleted_count} unused context versions"
+        }
+    except Exception as e:
+        logger.error(f"Admin cleanup failed: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"message": "Cleanup operation failed", "error": str(e)}
+        )
 
 # Mount analytics router to admin router
 router.include_router(analytics_router)

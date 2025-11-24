@@ -1,27 +1,88 @@
+import asyncio
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from fastapi import FastAPI, Request, Query, Depends
+
+from fastapi import Depends, FastAPI, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
-from sqlmodel import Session
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+from sqlmodel import Session
 
-from .database import create_db_and_tables, get_session, engine
-from .routers import auth_router, context_router, feedback_router, analytics_router, upgrade_router, onboarding_router, admin_router
 from .config import settings
+from .crud.admin import ensure_admin_exists
+from .crud.context import delete_unused_versions
+from .database import create_db_and_tables, engine, get_session
 from .logging_config import logger
 from .middleware import limiter
+from .routers import (
+    admin_router,
+    analytics_router,
+    auth_router,
+    context_router,
+    feedback_router,
+    onboarding_router,
+    upgrade_router
+)
 from .services.crypto import crypto_service
 from .services.verification import handle_email_verification, handle_password_reset_page
-from .crud.admin import ensure_admin_exists
 
 BASE_DIR = Path(__file__).parent
 DASHBOARD_DIR = BASE_DIR / "dashboard"
 ADMIN_DIR = BASE_DIR / "admin"
 HOMEPAGE_DIR = BASE_DIR / "homepage"
 
+
+def get_next_cleanup_time(target_hour: int) -> datetime:
+    now = datetime.now(timezone.utc)
+    target_time = now.replace(hour=target_hour, minute=0, second=0, microsecond=0)
+
+    if target_time <= now:
+        target_time += timedelta(days=1)
+
+    return target_time
+
+
+async def cleanup_unused_versions():
+    while True:
+        try:
+            next_run = get_next_cleanup_time(settings.VERSION_CLEANUP_HOUR)
+            now = datetime.now(timezone.utc)
+            sleep_seconds = (next_run - now).total_seconds()
+
+            if sleep_seconds > 0:
+                logger.info(
+                    f"Scheduled cleanup task will run at {next_run.strftime('%Y-%m-%d %H:%M:%S UTC')}"
+                )
+                await asyncio.sleep(sleep_seconds)
+
+            try:
+                with Session(engine) as session:
+                    deleted_count = delete_unused_versions(
+                        session, settings.VERSION_AUTO_DELETE_DAYS
+                    )
+                    if deleted_count > 0:
+                        logger.info(
+                            f"Auto-deleted {deleted_count} unused context versions "
+                            f"(threshold: {settings.VERSION_AUTO_DELETE_DAYS} days)"
+                        )
+                    else:
+                        logger.info(
+                            f"Cleanup task completed: no unused versions to delete "
+                            f"(threshold: {settings.VERSION_AUTO_DELETE_DAYS} days)"
+                        )
+            except Exception as db_error:
+                logger.error(f"Database error in cleanup task: {str(db_error)}")
+                await asyncio.sleep(3600)
+                continue
+        except asyncio.CancelledError:
+            logger.info("Cleanup task cancelled")
+            break
+        except Exception as e:
+            logger.error(f"Error in auto-deletion task: {str(e)}", exc_info=True)
+            await asyncio.sleep(3600)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -34,17 +95,28 @@ async def lifespan(app: FastAPI):
         raise
     
     create_db_and_tables()
-    
+
     if crypto_service is None:
         logger.error("Crypto service failed to initialize")
         raise RuntimeError("Crypto service initialization failed")
-    
-    from sqlmodel import Session
+
     with Session(engine) as session:
         ensure_admin_exists(session, settings.ADMIN_USERNAME, settings.ADMIN_PASSWORD)
+
+    with Session(engine) as session:
+        deleted_count = delete_unused_versions(session, settings.VERSION_AUTO_DELETE_DAYS)
+        if deleted_count > 0:
+            logger.info(f"Initial cleanup: deleted {deleted_count} unused context versions")
+
+    cleanup_task = asyncio.create_task(cleanup_unused_versions())
     
     logger.info("Server started successfully")
     yield
+    cleanup_task.cancel()
+    try:
+        await cleanup_task
+    except asyncio.CancelledError:
+        pass
     logger.info("Shutting down RememberMyContext API server...")
 
 
@@ -52,7 +124,10 @@ app = FastAPI(
     title="RememberMyContext API",
     version="1.0.0",
     description="Context Management API for RememberMyContext Chrome Extension",
-    lifespan=lifespan
+    lifespan=lifespan,
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json"
 )
 
 app.state.limiter = limiter
@@ -65,15 +140,18 @@ def get_allowed_origins():
         "http://127.0.0.1:3000",
         "http://127.0.0.1:8000"
     ]
-    
+
     if settings.ALLOWED_ORIGINS:
         origins.extend([origin.strip() for origin in settings.ALLOWED_ORIGINS.split(",")])
-    
-    is_production = "localhost" not in str(settings.DATABASE_URL) and "127.0.0.1" not in str(settings.DATABASE_URL)
-    
+
+    is_production = (
+        "localhost" not in str(settings.DATABASE_URL) and
+        "127.0.0.1" not in str(settings.DATABASE_URL)
+    )
+
     if not is_production:
         origins.append("chrome-extension://*")
-    
+
     return origins
 
 app.add_middleware(
@@ -112,7 +190,11 @@ except RuntimeError:
 def read_root():
     homepage_path = HOMEPAGE_DIR / "index.html"
     if homepage_path.exists():
-        return FileResponse(str(homepage_path))
+        return FileResponse(
+            str(homepage_path),
+            media_type="text/html",
+            headers={"Cache-Control": "public, max-age=3600"}
+        )
     else:
         logger.warning(f"Homepage file not found at {homepage_path}")
         return JSONResponse(
@@ -123,6 +205,14 @@ def read_root():
                 "status": "operational"
             }
         )
+
+
+@app.get("/favicon.ico")
+def favicon():
+    favicon_path = HOMEPAGE_DIR / "assets" / "favicon.png"
+    if favicon_path.exists():
+        return FileResponse(str(favicon_path))
+    return Response(status_code=204)
 
 
 @app.get("/health")

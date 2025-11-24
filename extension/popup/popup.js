@@ -116,6 +116,7 @@ async function apiCall(url, options = {}) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+    document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
     await initializeConfig();
     await initializeApp();
     setupEventListeners();
@@ -141,37 +142,26 @@ async function initializeConfig() {
 async function initializeApp() {
     const user = await chrome.storage.local.get(['user']);
     if (user.user && user.user.access_token) {
+        currentUser = user.user;
         try {
             const testResponse = await fetch(`${API_BASE}/contexts`, {
                 headers: { 'Authorization': `Bearer ${user.user.access_token}` }
             });
             
             if (testResponse.ok || testResponse.status === 404) {
-                currentUser = user.user;
                 const onboardingStatus = await checkOnboardingStatus();
                 if (!onboardingStatus || !onboardingStatus.completed) {
                     showScreen('onboarding-1');
-            } else {
-                showScreen('main');
-                loadContexts();
-                const lastBox = await chrome.storage.local.get(['lastContextBox']);
-                if (lastBox.lastContextBox) {
-                    currentBox = lastBox.lastContextBox;
-                    showVersions();
+                } else {
+                    showScreen('main');
+                    loadContexts();
                 }
-            }
             } else if (testResponse.status === 401 || testResponse.status === 403) {
                 await handleLogout();
                 showScreen('welcome');
             } else {
-                currentUser = user.user;
                 showScreen('main');
                 loadContexts();
-                const lastBox = await chrome.storage.local.get(['lastContextBox']);
-                if (lastBox.lastContextBox) {
-                    currentBox = lastBox.lastContextBox;
-                    showVersions();
-                }
             }
         } catch (error) {
             await handleLogout();
@@ -485,8 +475,9 @@ function updateContextBoxes() {
         if (context) {
             const lastUsed = context.last_used_at ? 
                 formatDateTime(context.last_used_at) : 'Never used';
+            const versionText = pluralize(context.versions_count, 'version', 'versions');
             boxElement.querySelector('.context-box-meta').textContent = 
-                `${context.versions_count} versions • Last used ${lastUsed}`;
+                `${context.versions_count} ${versionText} • Last used ${lastUsed}`;
         } else {
             boxElement.querySelector('.context-box-meta').textContent = '0 versions • Never used';
         }
@@ -613,7 +604,8 @@ function displayVersions(versions) {
                 lastUsedText = `Last used at ${lastUsedDate}`;
             }
         }
-        usageStats.textContent = `📊 Used ${version.uses_count} times • ${lastUsedText}`;
+        const useText = pluralize(version.uses_count, 'time', 'times');
+        usageStats.textContent = `📊 Used ${version.uses_count} ${useText} • ${lastUsedText}`;
         
         versionElement.appendChild(header);
         versionElement.appendChild(usageStats);

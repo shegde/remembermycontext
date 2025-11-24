@@ -26,6 +26,8 @@ class Settings:
     EMAIL_VERIFICATION_EXPIRY_HOURS: int = int(os.getenv("EMAIL_VERIFICATION_EXPIRY_HOURS", "24"))
     PASSWORD_RESET_EXPIRY_HOURS: int = int(os.getenv("PASSWORD_RESET_EXPIRY_HOURS", "1"))
     ACCOUNT_DELETION_GRACE_DAYS: int = int(os.getenv("ACCOUNT_DELETION_GRACE_DAYS", "7"))
+    VERSION_AUTO_DELETE_DAYS: int = int(os.getenv("VERSION_AUTO_DELETE_DAYS", "30"))
+    VERSION_CLEANUP_HOUR: int = int(os.getenv("VERSION_CLEANUP_HOUR", "3"))
     
     ENABLE_ONBOARDING: bool = os.getenv("ENABLE_ONBOARDING", "true").lower() == "true"
     ENABLE_PASSWORD_RESET: bool = os.getenv("ENABLE_PASSWORD_RESET", "true").lower() == "true"

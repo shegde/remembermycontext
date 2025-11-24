@@ -1,11 +1,13 @@
-from sqlmodel import Session, select
-from typing import List, Optional, Dict
+from datetime import datetime, timedelta, timezone
+from typing import Dict, List, Optional
 from uuid import UUID
-from datetime import datetime, timezone
 
+from sqlalchemy import or_
+from sqlmodel import Session, select
+
+from ..logging_config import logger
 from ..models import ContextVersion
 from ..services.crypto import crypto_service
-from ..logging_config import logger
 
 
 def create_context_version(session: Session, user_id: UUID, box_name: str, text: str) -> ContextVersion:
@@ -117,4 +119,88 @@ def get_user_contexts_summary(session: Session, user_id: UUID) -> List[Dict]:
             boxes[version.box_name]["last_used_at"] = version.last_used_at
     
     return list(boxes.values())
+
+
+def preview_unused_versions(session: Session, days_threshold: int) -> List[Dict]:
+    cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_threshold)
+
+    statement = select(ContextVersion).where(
+        or_(
+            (ContextVersion.last_used_at.is_(None)) & (ContextVersion.created_at < cutoff_date),
+            (ContextVersion.last_used_at.isnot(None)) & (ContextVersion.last_used_at < cutoff_date)
+        )
+    )
+
+    versions_to_delete = list(session.exec(statement).all())
+    now = datetime.now(timezone.utc)
+    preview = []
+
+    for version in versions_to_delete:
+        created_at = version.created_at
+        last_used_at = version.last_used_at
+
+        if created_at and created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=timezone.utc)
+        if last_used_at and last_used_at.tzinfo is None:
+            last_used_at = last_used_at.replace(tzinfo=timezone.utc)
+
+        days_since_created = (now - created_at).days if created_at else None
+        days_since_last_used = (now - last_used_at).days if last_used_at else None
+
+        if last_used_at is None:
+            deletion_reason = "never_used"
+        elif last_used_at < cutoff_date:
+            deletion_reason = "last_used_old"
+        else:
+            deletion_reason = None
+
+        preview.append({
+            "id": str(version.id),
+            "user_id": str(version.user_id),
+            "box_name": version.box_name,
+            "version_number": version.version_number,
+            "uses_count": version.uses_count,
+            "created_at": created_at.isoformat() if created_at else None,
+            "last_used_at": last_used_at.isoformat() if last_used_at else None,
+            "days_since_created": days_since_created,
+            "days_since_last_used": days_since_last_used,
+            "deletion_reason": deletion_reason,
+            "cutoff_date": cutoff_date.isoformat()
+        })
+
+    return preview
+
+def delete_unused_versions(session: Session, days_threshold: int) -> int:
+    if days_threshold < 1:
+        raise ValueError("Days threshold must be at least 1")
+
+    cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_threshold)
+
+    try:
+        statement = select(ContextVersion).where(
+            or_(
+                (ContextVersion.last_used_at.is_(None)) & (ContextVersion.created_at < cutoff_date),
+                (ContextVersion.last_used_at.isnot(None)) & (ContextVersion.last_used_at < cutoff_date)
+            )
+        )
+
+        versions_to_delete = list(session.exec(statement).all())
+        count = len(versions_to_delete)
+
+        if count > 0:
+            for version in versions_to_delete:
+                session.delete(version)
+            session.commit()
+            logger.info(
+                f"Deleted {count} unused context versions older than {days_threshold} days "
+                f"(cutoff: {cutoff_date.isoformat()})"
+            )
+        else:
+            logger.debug(f"No versions to delete with {days_threshold} days threshold")
+
+        return count
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Failed to delete unused versions: {str(e)}")
+        raise
 
