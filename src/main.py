@@ -207,6 +207,23 @@ def read_root():
         )
 
 
+@app.get("/legal", response_class=HTMLResponse)
+def serve_legal():
+    legal_path = HOMEPAGE_DIR / "legal.html"
+    if legal_path.exists():
+        return FileResponse(
+            str(legal_path),
+            media_type="text/html",
+            headers={"Cache-Control": "public, max-age=3600"}
+        )
+    else:
+        logger.warning(f"Legal page not found at {legal_path}")
+        return JSONResponse(
+            status_code=404,
+            content={"message": "Legal page not found"}
+        )
+
+
 @app.get("/favicon.ico")
 def favicon():
     favicon_path = HOMEPAGE_DIR / "assets" / "favicon.png"

@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>RememberMyContext — Legal (Privacy Policy & Terms)</title>
+  <style>
+    :root{
+      --bg:#ffffff; --muted:#616161; --accent:#0b64b1; --maxw:980px;
+      --serif: "Georgia", "Times New Roman", serif; --sans: "Inter", "Helvetica Neue", Arial, sans-serif;
+    }
+    html,body{height:100%;margin:0;background:var(--bg);color:#111; font-family:var(--sans);line-height:1.6;}
+    .wrap{max-width:var(--maxw);margin:36px auto;padding:28px;border-radius:10px;box-shadow:0 6px 30px rgba(12,20,30,0.06);}
+    header{display:flex;align-items:center;gap:16px;margin-bottom:18px;}
+    .brand{display:flex;flex-direction:column;}
+    h1{margin:0;font-size:20px;color:var(--accent);}
+    p.lead{margin:6px 0 0;color:var(--muted);}
+    nav.toc{margin:18px 0;padding:12px 16px;background:#f7fbff;border-left:4px solid var(--accent);border-radius:6px;}
+    nav.toc ul{margin:0;padding-left:20px;}
+    section{margin-top:26px;}
+    h2{font-size:18px;margin:18px 0 8px;color:#0e3a64;}
+    h3{font-size:16px;margin:14px 0 6px;color:#0b4f85;}
+    .muted{color:var(--muted);font-size:14px;}
+    table.meta{width:100%;border-collapse:collapse;margin-top:8px;}
+    table.meta td{padding:6px 8px;border-top:1px solid #eef2f6;}
+    .footer{margin-top:36px;padding-top:16px;border-top:1px solid #eef2f6;color:var(--muted);font-size:13px;}
+    a{color:var(--accent);text-decoration:underline;}
+    .btn{display:inline-block;padding:10px 14px;background:var(--accent);color:#fff;border-radius:8px;text-decoration:none;}
+    .note{background:#fff7e6;border-left:4px solid #ffb74d;padding:12px;border-radius:6px;color:#684400;margin:16px 0;}
+    code{background:#f3f6fb;padding:3px 6px;border-radius:4px;font-family:monospace;}
+  </style>
+</head>
+<body>
+  <div class="wrap" role="main">
+    <header>
+      <div class="brand">
+        <h1>RememberMyContext — Legal</h1>
+        <p class="lead">Privacy Policy • Terms of Service • Chrome Data Practices Disclosure</p>
+      </div>
+      <div style="margin-left:auto;text-align:right">
+        <div class="muted" style="margin-top:8px">Effective date: <strong>November 25, 2025</strong></div>
+      </div>
+    </header>
+    <nav class="toc" aria-label="Table of contents">
+      <strong>On this page</strong>
+      <ul>
+        <li><a href="#privacy">Privacy Policy</a></li>
+        <li><a href="#privacy-data">• Data We Collect</a></li>
+        <li><a href="#privacy-security">• Security & Storage</a></li>
+        <li><a href="#third-party">Third-Party Sharing</a></li>
+        <li><a href="#retention">• Retention & Deletion</a></li>
+        <li><a href="#terms">Terms of Service</a></li>
+        <li><a href="#chrome-disclosure">Chrome Data Practices Disclosure</a></li>
+        <li><a href="#contact">Contact</a></li>
+      </ul>
+    </nav>
+    <section id="privacy">
+      <h2>Privacy Policy — RememberMyContext</h2>
+      <p class="muted">This Privacy Policy explains what data we collect, how we use it, and your rights. If you have questions, contact <a href="mailto:admin@remembermycontext.com">admin@remembermycontext.com</a>.</p>
+      <h3 id="privacy-overview">1. Overview</h3>
+      <p>RememberMyContext ("we", "our", or "the Service") is a browser extension that helps users create encrypted "Context Boxes" and automatically share them with large language model (LLM) web interfaces (ChatGPT, Claude, Gemini, Perplexity, etc.). This policy explains our practices and the choices available to you.</p>
+      <h3 id="privacy-data">2. Data We Collect</h3>
+      <p><strong>2.1 Data you provide:</strong></p>
+      <ul>
+        <li><strong>Email address:</strong> used for account registration, verification, and password resets.</li>
+        <li><strong>Password (hashed):</strong> We store a password hash using <strong>bcrypt</strong>; raw passwords are never stored.</li>
+        <li><strong>Context Boxes:</strong> text content you create and designate to store (encrypted before storage).</li>
+        <li><strong>Context metadata:</strong> box names, versions, and related metadata.</li>
+        <li><strong>Feedback & support messages.</strong></li>
+      </ul>
+      <p><strong>2.2 Automatically collected data:</strong></p>
+      <ul>
+        <li>URLs of LLM sites you visit (to detect when to inject context).</li>
+        <li>Timestamps of context injection and the target LLM.</li>
+        <li>Internal analytics events (feature usage, onboarding completion) — collected and stored internally only.</li>
+        <li><strong>Error logs:</strong> server-side error logs stored on our servers for debugging purposes (not shared with third parties).</li>
+      </ul>
+      <p class="muted"><strong>We do not collect:</strong> browser history outside LLM domains, device fingerprinting, authentication tokens, payment or financial data, nor data from children under 13.</p>
+      <h3 id="privacy-use">3. How We Use Your Data</h3>
+      <p>We use the data to:</p>
+      <ul>
+        <li>Provide core functionality (create, store, version, and inject Context Boxes).</li>
+        <li>Authenticate accounts and deliver account-related emails.</li>
+        <li>Track usage and improve the product using internal analytics and error logs.</li>
+        <li>Debug operational issues and respond to user support requests.</li>
+      </ul>
+      <h3 id="third-party">4. Third-Party Sharing</h3>
+      <p>We do not sell, rent, or otherwise monetize your personal data. We share a limited subset of data with third parties strictly to operate the Service:</p>
+      <ul>
+        <li>
+          <strong>Resend (resend.com)</strong> — used solely to send account verification and password reset emails.<br/>
+          <em>What we share:</em> your <strong>email address</strong> at the time a transactional email is sent.<br/>
+          <em>What we do not share:</em> context content (encrypted or decrypted), context metadata, analytics, password hashes, or error logs.<br/>
+          Resend privacy policy: <a href="https://resend.com/legal/privacy-policy" target="_blank" rel="noopener noreferrer">https://resend.com/legal/privacy-policy</a>.
+        </li>
+        <li>
+          <strong>Render.com</strong> — hosting provider for our PostgreSQL database where encrypted data, metadata, and internal logs are stored. Render is a cloud infrastructure provider and does not access or process your data except as necessary to host our service.
+        </li>
+      </ul>
+      <h3 id="privacy-storage">5. Where and How Data Is Stored</h3>
+      <p>Data is stored in a PostgreSQL database hosted on <strong>Render.com</strong>. Data stored server-side includes:</p>
+      <ul>
+        <li>Email + bcrypt password hash</li>
+        <li>Encrypted context content (ciphertext)</li>
+        <li>Context metadata (box names, version numbers)</li>
+        <li>Internal analytics events and server-side error logs</li>
+      </ul>
+      <h3 id="privacy-security">6. Security & Encryption</h3>
+      <p>We implement multiple security layers:</p>
+      <ul>
+        <li><strong>Encryption in transit:</strong> All network traffic uses HTTPS/TLS.</li>
+        <li><strong>Encryption of content:</strong> Context Box text is encrypted using <strong>Fernet</strong> (AES-128-CBC + HMAC-SHA256).</li>
+        <li><strong>Server decryption policy:</strong> The server holds the Fernet key and is able to decrypt Context Box content <strong>only when you explicitly request it</strong> (for example, when you choose to copy a box to an LLM session or view decrypted content). We do not access or read your content without your explicit action.</li>
+        <li><strong>Key management:</strong> Encryption keys and other secrets are stored as server-side environment variables and are not exposed to clients.</li>
+        <li><strong>Password storage:</strong> Passwords are hashed using <strong>bcrypt</strong> before storage; plaintext passwords are never stored.</li>
+        <li><strong>Access controls:</strong> Internal access to production systems is limited and audited; decryption requires an explicit user action and is logged.</li>
+      </ul>
+      <h3 id="retention">7. Data Retention & Deletion</h3>
+      <p>We use a combination of automatic and manual deletion policies to maintain data hygiene and user control:</p>
+      <ul>
+        <li><strong>Automatic deletion:</strong> Context versions that have not been used for <strong>30 days</strong> are automatically deleted from our servers to reduce stale data retention.</li>
+        <li><strong>Manual deletion:</strong> You may permanently delete your account and all associated data from the dashboard at any time. Manual deletion is immediate and irreversible.</li>
+        <li><strong>Account deletion grace period:</strong> When you request account deletion, your data will be retained for <strong>7 days</strong> (a grace period during which you may cancel the deletion). After the 7-day grace period, your data is permanently deleted.</li>
+      </ul>
+      <h3 id="privacy-children">8. Children's Privacy</h3>
+      <p>The Service is not intended for children under 13. We do not knowingly collect data from children under 13.</p>
+      <h3 id="privacy-changes">9. Changes to This Policy</h3>
+      <p>We may update this policy to reflect new features or legal requirements. Material changes will be communicated to users by email or via product notifications. The effective date at the top of this page reflects the most recent update.</p>
+      <div class="note">
+        <strong>Note:</strong> We do not use user data to train machine learning models and we do not sell user data to third parties.
+      </div>
+    </section>
+    <section id="terms">
+      <h2>Terms of Service — RememberMyContext</h2>
+      <p class="muted">By installing or using the RememberMyContext extension you agree to these terms.</p>
+      <h3 id="tos-acceptance">1. Acceptance</h3>
+      <p>By using RememberMyContext, you accept and agree to be bound by these Terms of Service. If you do not agree, do not use the Service.</p>
+      <h3 id="tos-use">2. Use of the Service</h3>
+      <p>You may use the Service for lawful purposes only. You agree not to:</p>
+      <ul>
+        <li>Reverse engineer, decompile, or disassemble the extension;</li>
+        <li>Attempt unauthorized access to our systems or other users' accounts;</li>
+        <li>Use the Service to transmit malware, harmful content, or for illegal activities;</li>
+        <li>Circumvent or remove any security or technical features of the Service.</li>
+      </ul>
+      <h3 id="tos-account">3. Accounts</h3>
+      <p>You must register with a valid email address. You are responsible for maintaining the security of your credentials and for all activity on your account.</p>
+      <h3 id="tos-content">4. User Content & Ownership</h3>
+      <p>You retain full ownership of any content you add to Context Boxes. By using the Service you grant us permission to store encrypted copies of that content and to process metadata required to provide the Service. Server-side decryption occurs only after explicit user action (e.g., request to inject or copy a box to an LLM), and such access is logged.</p>
+      <h3 id="tos-availability">5. Service Availability</h3>
+      <p>The Service is provided "as-is." We do not guarantee uninterrupted operation or compatibility with future LLM site changes. We will make reasonable efforts to maintain the Service and to communicate major outages.</p>
+      <h3 id="tos-liability">6. Limitation of Liability</h3>
+      <p>To the fullest extent permitted by law, RememberMyContext.com and its owners are not liable for indirect, special, incidental, or consequential damages arising from your use of the Service, including data loss or service interruptions.</p>
+      <h3 id="tos-indemnity">7. Indemnification</h3>
+      <p>You agree to indemnify and hold harmless RememberMyContext.com and its affiliates from legal claims, damages, liabilities, and expenses arising from your use of the Service or violation of these Terms.</p>
+      <h3 id="tos-termination">8. Termination</h3>
+      <p>We may suspend or terminate accounts that violate these Terms. You may delete your account at any time; account deletion follows the retention and grace period rules described in the Privacy Policy.</p>
+      <h3 id="tos-thirdparty">9. Third-Party Services</h3>
+      <p>We use third-party services to operate the Service, including Resend (resend.com) for email delivery and Render.com for hosting. Your email address may be shared with Resend for transactional email delivery only. See our Privacy Policy for details.</p>
+      <h3 id="tos-governing">10. Governing Law</h3>
+      <p>These Terms are governed by applicable law in your jurisdiction.</p>
+    </section>
+    <section id="chrome-disclosure">
+      <h2>Chrome Data Practices Disclosure</h2>
+      <h3 id="chrome-collected">1. Data Collected</h3>
+      <ul>
+        <li><strong>Personal Info:</strong> Email address (account creation, verification).</li>
+        <li><strong>Account Data:</strong> bcrypt password hash, account metadata.</li>
+        <li><strong>Encrypted Content:</strong> Context Box ciphertext.</li>
+        <li><strong>Activity:</strong> LLM site URLs visited, timestamps of injections, which LLM received context.</li>
+        <li><strong>App Activity:</strong> Feature usage events, onboarding completion, server-side error logs (for debugging).</li>
+      </ul>
+      <h3 id="chrome-purpose">2. Purpose of Collection</h3>
+      <p>Collected data is used to provide extension functionality, authenticate users, debug issues, and perform internal analytics to improve the product.</p>
+      <h3 id="chrome-thirdparty">3. Data Shared with Third Parties</h3>
+      <p>We share only the following with third-party providers for operational purposes:</p>
+      <ul>
+        <li><strong>Resend (resend.com):</strong> Shared email addresses for account verification and password reset emails only. <a href="https://resend.com/legal/privacy-policy" target="_blank" rel="noopener noreferrer">Resend privacy policy</a>.</li>
+        <li><strong>Render.com (hosting):</strong> Stores encrypted data and logs as required to operate the service.</li>
+      </ul>
+      <h3 id="chrome-storage-security">4. Storage & Security</h3>
+      <p>Data is stored on Render.com in a PostgreSQL database. We use Fernet (AES-128-CBC + HMAC-SHA256) encryption for sensitive content and TLS for network transport. The server holds the Fernet key and decrypts content only upon explicit user action. Encryption keys are stored in secure server environment variables.</p>
+      <h3 id="chrome-permissions">5. Chrome Extension Permissions</h3>
+      <p>The extension requests the following permissions during installation:</p>
+      <ul>
+        <li><code>storage</code> — persist settings and local cache.</li>
+        <li><code>scripting</code> — inject context into LLM pages.</li>
+        <li><code>activeTab</code> and <code>tabs</code> — detect LLM domains and current tab for injection logic.</li>
+        <li>Host permissions — required for targeted LLM domains (e.g., <code>https://chat.openai.com/*</code>, host permissions for Claude, Gemini, Perplexity, and <code>https://remembermycontext.com/*</code> for API calls).</li>
+      </ul>
+      <h3 id="chrome-rights">6. User Rights</h3>
+      <p>Users may:</p>
+      <ul>
+        <li>Delete their account and all stored data from the dashboard (subject to the 7-day grace period).</li>
+        <li>Request data deletion via email to <a href="mailto:admin@remembermycontext.com">admin@remembermycontext.com</a>.</li>
+      </ul>
+      <h3 id="chrome-nodata">7. No Data Sale or Model Training</h3>
+      <p>We do not sell user data or use it to train machine learning models.</p>
+    </section>
+    <section id="contact">
+      <h2>Contact & Legal</h2>
+      <p>If you have questions about these policies, please contact:</p>
+      <table class="meta" role="table" aria-label="Contact details">
+        <tr><td>Support email</td><td><a href="mailto:admin@remembermycontext.com">admin@remembermycontext.com</a></td></tr>
+        <tr><td>Company</td><td>RememberYourContext.com</td></tr>
+        <tr><td>Effective date</td><td>November 25, 2025</tr>
+        <tr><td>Privacy policy URL</td><td><a href="/legal">https://remembermycontext.com/legal</a></td></tr>
+      </table>
+      <div class="footer">
+        <p class="muted">This page contains legally relevant information. Keep it updated when product behavior or third-party vendors change (for example, if you add analytics providers or new integrations).</p>
+      </div>
+    </section>
+  </div>
+</body>
+</html>
+
