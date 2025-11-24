@@ -178,9 +178,13 @@ function displayContextBoxes(contexts) {
             stats.className = 'dashboard-stats';
             
             const versionsText = document.createElement('strong');
-            versionsText.textContent = `${context?.versions_count || 0} versions`;
+            const versionCount = context?.versions_count || 0;
+            const versionText = versionCount === 1 ? 'version' : 'versions';
+            versionsText.textContent = `${versionCount} ${versionText}`;
             
-            const usesText = document.createTextNode(`${context?.total_uses || 0} total uses`);
+            const useCount = context?.total_uses || 0;
+            const useText = useCount === 1 ? 'total use' : 'total uses';
+            const usesText = document.createTextNode(`${useCount} ${useText}`);
             const lastUsedText = document.createTextNode(`Last used: ${lastUsed}`);
             
             stats.appendChild(versionsText);
@@ -256,7 +260,7 @@ function displayAnalytics(analytics, contexts) {
     const llmApps = Object.keys(sitesMap).length;
     const llmAppsList = Object.entries(sitesMap)
         .sort((a, b) => b[1] - a[1])
-        .map(([site, count]) => `${site} (${count} uses)`)
+        .map(([site, count]) => `${site} (${count} ${count === 1 ? 'use' : 'uses'})`)
         .join(', ') || 'No LLM apps used yet';
     
     document.getElementById('total-copies').textContent = totalCopies + totalInserts;
@@ -342,7 +346,7 @@ function displayLLMApps(sitesMap) {
         siteName.style.fontWeight = '500';
         
         const badge = document.createElement('span');
-        badge.textContent = `${count} uses`;
+        badge.textContent = `${count} ${count === 1 ? 'use' : 'uses'}`;
         badge.style.cssText = 'background: #007bff; color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px;';
         
         item.appendChild(siteName);
@@ -490,7 +494,8 @@ function showVersionsModal(boxName, versions) {
                 lastUsedText = `Last used at ${lastUsedDate}`;
             }
         }
-        statsDiv.textContent = `📊 Used ${version.uses_count} times • ${lastUsedText}`;
+        const useText = version.uses_count === 1 ? 'time' : 'times';
+        statsDiv.textContent = `📊 Used ${version.uses_count} ${useText} • ${lastUsedText}`;
         
         versionItem.appendChild(itemHeader);
         versionItem.appendChild(textContainer);
