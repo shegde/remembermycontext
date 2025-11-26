@@ -169,7 +169,7 @@ The application uses the following main models:
 1. **Clone the repository**
 
 ```bash
-git clone https://github.com/utkarsh-iitbhu/remembermycontext.git
+git clone https://github.com/shegde/remembermycontext.git
 cd remembermycontext
 ```
 
